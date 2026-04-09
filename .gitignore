@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.spec
+icon.ico
+
+# Virtual environment
+venv/
+.venv/
+
+# User data
+saves/
+
+# WorkBuddy
+.workbuddy/
+
+# IDE
+.vscode/
+.idea/
