@@ -10,14 +10,12 @@
 |------|------|
 | **随机池追踪** | 记录每次随机捕捉的精灵名称与计数，支持增 / 减 / 重置 |
 | **家族池追踪** | 按精灵家族分组记录保底进度，支持搜索过滤、独立重置与删除 |
-| **属性池追踪** | 18 种属性各自独立计数，网格展示，点选即操作 |
-| **全局计数联动** | 任意池子变动时全局计数同步更新 |
+| **属性池追踪** | 18 种属性各自独立计数，点选即操作 |
+| **全局计数联动** | 任意池子变动时全局计数同步更新（貌似并没有什么用处） |
 | **保底预警** | ≥ 70 次橙色预警，= 80 次红色醒目提示 |
 | **操作日志** | 完整记录每次操作的时间戳、池子类型与计数快照，支持分类过滤 |
 | **多存档管理** | 支持新建 / 切换 / 删除存档，数据互相隔离 |
 | **实时持久化** | 每次操作后自动写入 JSON，关闭窗口不丢数据 |
-| **系统蜂鸣反馈** | 操作时发出声音提示 |
-| **4K / 高DPI 适配** | 自动开启 Per-Monitor DPI 感知，高缩放比例下显示清晰 |
 
 ---
 
@@ -51,34 +49,12 @@ python -m venv .venv
 
 ---
 
-## 打包为 exe
-
-项目已内置打包配置文件 `洛克捕获记录工具.spec`，直接执行即可：
-
-```powershell
-.venv\Scripts\pyinstaller 洛克捕获记录工具.spec
-```
-
-打包完成后，可执行文件位于 `dist\洛克捕获记录工具.exe`。
-
-> **注意**：`saves/` 目录会在 exe 同级目录下自动生成，存放所有存档数据。打包时无需手动处理。
-
-如需手动指定打包参数（例如首次没有 `.spec` 文件）：
-
-```powershell
-.venv\Scripts\pyinstaller --onefile --windowed --icon=icon.ico --name 洛克捕获记录工具 main.py
-```
-
----
-
 ## 项目结构
 
 ```
 RocoCaptureV2/
 ├── main.py                         # 顶层入口
 ├── requirements.txt                # 依赖声明
-├── 洛克捕获记录工具.spec            # PyInstaller 打包配置
-├── icon.ico                        # 应用图标
 ├── saves/                          # 存档目录（运行时自动生成）
 │   └── <存档名>.json
 └── src/
@@ -94,13 +70,17 @@ RocoCaptureV2/
     │   │   ├── counter_display.py  # 计数展示组件（支持保底色彩预警）
     │   │   ├── random_pool_card.py # 随机池卡片
     │   │   ├── family_pool_card.py # 家族池卡片
-    │   │   ├── element_pool_card.py# 属性池卡片
+    │   │   ├── element_pool_card.py# 属性池卡片（含属性图标）
     │   │   └── log_panel.py        # 操作日志面板
     │   └── dialogs/
     │       ├── confirm_dialog.py   # 通用确认弹窗
     │       └── create_save_dialog.py # 新建存档弹窗
+    ├── assets/
+    │   ├── icons/                   # 18 种属性图标（PNG）
+    │   ├── sounds/                  # 音效文件（WAV）
+    │   └── icon_loader.py           # 图标加载工具（带缓存）
     └── utils/
-        └── beep.py                 # 系统蜂鸣工具
+        └── beep.py                 # 音效播放工具（WAV / 系统蜂鸣回退）
 ```
 
 ---
@@ -152,7 +132,7 @@ RocoCaptureV2/
   "random_pool": 12,
   "family_pool": {
     "柴渣虫": 5,
-    "石龟": 23
+    "治愈兔": 23
   },
   "element_pool": {
     "火": 8,
@@ -162,7 +142,7 @@ RocoCaptureV2/
   "global_count": 35,
   "logs": [
     {
-      "time": "2026-04-08 14:30:00",
+      "time": "2077-07-07 14:30:00",
       "pool": "random",
       "action": "increase",
       "target": "柴渣虫",
@@ -176,26 +156,15 @@ RocoCaptureV2/
 
 ---
 
-## 开发说明
-
-### 添加新属性
-
-编辑 `src/models/constants.py` 中的 `ELEMENTS` 列表，属性池 UI 会自动生成对应行，无需改动其他文件。
-
-### 修改保底阈值
-
-同样在 `constants.py` 中调整 `PITY_MAX`（上限）和 `PITY_WARN_THRESHOLD`（预警线）。
-
----
-
 ## 依赖
 
 | 包 | 版本要求 | 用途 |
 |----|----------|------|
 | [customtkinter](https://github.com/TomSchimansky/CustomTkinter) | ≥ 5.2.0 | 现代暗色 UI 框架 |
+| [Pillow](https://python-pillow.org/) | ≥ 9.5.0 | 图像加载（CTkImage 底层依赖） |
 
 ---
 
 ## License
 
-仅供个人学习与游戏辅助使用，请勿用于商业用途。
+本项目由AI编写，仅供个人学习与游戏辅助使用，请勿用于商业用途。
