@@ -13,10 +13,18 @@ class RandomPoolCard(ctk.CTkFrame):
         self._on_change = on_change
 
         # 标题
+        header = ctk.CTkFrame(self, fg_color="transparent")
+        header.pack(fill="x", padx=12, pady=(12, 4))
         ctk.CTkLabel(
-            self, text="🎲 随机池",
+            header, text="🎲", width=24,
+            font=ctk.CTkFont(size=14),
+            anchor="e",
+        ).pack(side="left", padx=(0, 2))
+        ctk.CTkLabel(
+            header, text="随机池",
             font=ctk.CTkFont(size=16, weight="bold"),
-        ).pack(pady=(12, 4))
+            anchor="w",
+        ).pack(side="left")
 
         # 计数显示
         self._counter = CounterDisplay(self)

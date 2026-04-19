@@ -8,6 +8,7 @@ from typing import Callable
 
 from src.models.save_slot import SaveSlot
 from src.models.constants import SAVES_DIR
+from src.assets.icon_loader import list_s1_spirits
 
 
 class SaveService:
@@ -36,7 +37,7 @@ class SaveService:
     # ── 创建 ──
 
     def create_save(self, name: str) -> SaveSlot:
-        """创建新存档并立即保存到磁盘"""
+        """创建新存档并立即保存到磁盘；默认预填 S1 赛季全部异色精灵"""
         name = name.strip()
         if not name:
             raise ValueError("存档名不能为空")
@@ -44,6 +45,10 @@ class SaveService:
         if path.exists():
             raise FileExistsError(f"存档 '{name}' 已存在")
         slot = SaveSlot(name)
+        # 首次新建存档：预填 S1 全部异色精灵（格式：No.041 奇丽草）
+        for no, spirit in list_s1_spirits():
+            display_name = f"No.{no:03d} {spirit}"
+            slot.family_pool[display_name] = 0
         self._write_json(path, slot.to_dict())
         self._current = slot
         self._current_path = path
