@@ -18,10 +18,18 @@ class ElementPoolCard(ctk.CTkFrame):
         self._rows: dict[str, ctk.CTkFrame] = {}
 
         # 标题
+        header = ctk.CTkFrame(self, fg_color="transparent")
+        header.pack(fill="x", padx=12, pady=(12, 4))
         ctk.CTkLabel(
-            self, text="⚡ 属性池",
+            header, text="⚡", width=24,
+            font=ctk.CTkFont(size=14),
+            anchor="e",
+        ).pack(side="left", padx=(0, 2))
+        ctk.CTkLabel(
+            header, text="属性池",
             font=ctk.CTkFont(size=16, weight="bold"),
-        ).pack(pady=(12, 4))
+            anchor="w",
+        ).pack(side="left")
 
         # 网格区域（可滚动）
         grid_frame = ctk.CTkScrollableFrame(self, height=240)

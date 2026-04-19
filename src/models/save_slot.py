@@ -77,14 +77,12 @@ class SaveSlot:
         self.random_pool: int = 0
         self.family_pool: dict[str, int] = {}
         self.element_pool: dict[str, int] = {}
-        self.global_counter: int = 0
         self.logs: list[ActivityLog] = []
 
     # ── 随机池操作 ──
 
     def random_increase(self, spirit_name: str = "") -> list[ActivityLog]:
         self.random_pool += 1
-        self.global_counter += 1
         self._touch()
         log = ActivityLog(POOL_RANDOM, ACTION_INCREASE, spirit_name or "随机池", self.random_pool)
         self.logs.append(log)
@@ -93,7 +91,6 @@ class SaveSlot:
     def random_decrease(self, spirit_name: str = "") -> list[ActivityLog]:
         if self.random_pool > 0:
             self.random_pool -= 1
-            self.global_counter = max(0, self.global_counter - 1)
             self._touch()
             log = ActivityLog(POOL_RANDOM, ACTION_DECREASE, spirit_name or "随机池", self.random_pool)
             self.logs.append(log)
@@ -103,9 +100,7 @@ class SaveSlot:
     def random_reset(self) -> list[ActivityLog]:
         if self.random_pool == 0:
             return []
-        diff = self.random_pool
         self.random_pool = 0
-        self.global_counter = max(0, self.global_counter - diff)
         self._touch()
         log = ActivityLog(POOL_RANDOM, ACTION_RESET, "随机池", 0)
         self.logs.append(log)
@@ -127,7 +122,6 @@ class SaveSlot:
         if spirit_name not in self.family_pool:
             return []
         self.family_pool[spirit_name] += 1
-        self.global_counter += 1
         self._touch()
         log = ActivityLog(POOL_FAMILY, ACTION_INCREASE, spirit_name, self.family_pool[spirit_name])
         self.logs.append(log)
@@ -137,7 +131,6 @@ class SaveSlot:
         if spirit_name not in self.family_pool or self.family_pool[spirit_name] <= 0:
             return []
         self.family_pool[spirit_name] -= 1
-        self.global_counter = max(0, self.global_counter - 1)
         self._touch()
         log = ActivityLog(POOL_FAMILY, ACTION_DECREASE, spirit_name, self.family_pool[spirit_name])
         self.logs.append(log)
@@ -146,9 +139,7 @@ class SaveSlot:
     def family_reset(self, spirit_name: str) -> list[ActivityLog]:
         if spirit_name not in self.family_pool or self.family_pool[spirit_name] == 0:
             return []
-        diff = self.family_pool[spirit_name]
         self.family_pool[spirit_name] = 0
-        self.global_counter = max(0, self.global_counter - diff)
         self._touch()
         log = ActivityLog(POOL_FAMILY, ACTION_RESET, spirit_name, 0)
         self.logs.append(log)
@@ -157,23 +148,9 @@ class SaveSlot:
     def family_delete(self, spirit_name: str) -> list[ActivityLog]:
         if spirit_name not in self.family_pool:
             return []
-        diff = self.family_pool[spirit_name]
         del self.family_pool[spirit_name]
-        self.global_counter = max(0, self.global_counter - diff)
         self._touch()
         log = ActivityLog(POOL_FAMILY, ACTION_DELETE, spirit_name, 0)
-        self.logs.append(log)
-        return [log]
-
-    # ── 全局计数操作 ──
-
-    def global_reset(self) -> list[ActivityLog]:
-        """将全局计数单独归零（异色提前出现时使用）"""
-        if self.global_counter == 0:
-            return []
-        self.global_counter = 0
-        self._touch()
-        log = ActivityLog("global", ACTION_RESET, "全局计数", 0)
         self.logs.append(log)
         return [log]
 
@@ -183,7 +160,6 @@ class SaveSlot:
         if element not in self.element_pool:
             self.element_pool[element] = 0
         self.element_pool[element] += 1
-        self.global_counter += 1
         self._touch()
         log = ActivityLog(POOL_ELEMENT, ACTION_INCREASE, element, self.element_pool[element])
         self.logs.append(log)
@@ -193,7 +169,6 @@ class SaveSlot:
         if element not in self.element_pool or self.element_pool[element] <= 0:
             return []
         self.element_pool[element] -= 1
-        self.global_counter = max(0, self.global_counter - 1)
         self._touch()
         log = ActivityLog(POOL_ELEMENT, ACTION_DECREASE, element, self.element_pool[element])
         self.logs.append(log)
@@ -202,9 +177,7 @@ class SaveSlot:
     def element_reset(self, element: str) -> list[ActivityLog]:
         if element not in self.element_pool or self.element_pool[element] == 0:
             return []
-        diff = self.element_pool[element]
         self.element_pool[element] = 0
-        self.global_counter = max(0, self.global_counter - diff)
         self._touch()
         log = ActivityLog(POOL_ELEMENT, ACTION_RESET, element, 0)
         self.logs.append(log)
@@ -220,7 +193,6 @@ class SaveSlot:
             "random_pool": self.random_pool,
             "family_pool": copy.deepcopy(self.family_pool),
             "element_pool": copy.deepcopy(self.element_pool),
-            "global_counter": self.global_counter,
             "logs": [log.to_dict() for log in self.logs],
         }
 
@@ -232,7 +204,6 @@ class SaveSlot:
         slot.random_pool = data.get("random_pool", 0)
         slot.family_pool = data.get("family_pool", {})
         slot.element_pool = data.get("element_pool", {})
-        slot.global_counter = data.get("global_counter", 0)
         slot.logs = [ActivityLog.from_dict(log_data) for log_data in data.get("logs", [])]
         return slot
 

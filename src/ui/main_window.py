@@ -1,19 +1,17 @@
-"""主窗口 —— 整合三个池子、全局计数、日志面板、存档管理"""
+"""主窗口 —— 整合三个池子、日志面板、存档管理"""
 import customtkinter as ctk
 
 from src.models.save_slot import SaveSlot
 from src.models.constants import (
-    ELEMENTS, ACTION_INCREASE, ACTION_DECREASE, ACTION_RESET, ACTION_DELETE,
+    ELEMENTS, ACTION_INCREASE, ACTION_DECREASE, ACTION_RESET,
     POOL_RANDOM, POOL_FAMILY, POOL_ELEMENT,
 )
 from src.services.save_service import SaveService
 from src.ui.components.random_pool_card import RandomPoolCard
 from src.ui.components.family_pool_card import FamilyPoolCard
 from src.ui.components.element_pool_card import ElementPoolCard
-from src.ui.components.counter_display import CounterDisplay
 from src.ui.components.log_panel import LogPanel
 from src.ui.dialogs.confirm_dialog import ConfirmDialog, CreateSaveDialog
-from src.utils.beep import beep
 
 
 class MainWindow(ctk.CTk):
@@ -22,10 +20,10 @@ class MainWindow(ctk.CTk):
         self._save_svc = save_service
 
         self.title("RocoCaptureV2 — 洛克王国异色保底追踪")
-        self.geometry("960x720")
-        self.minsize(800, 600)
+        self.geometry("960x820")
+        self.minsize(800, 700)
 
-        # ── 顶栏：存档选择 + 全局计数 ──
+        # ── 顶栏：存档选择 ──
         self._build_top_bar()
 
         # ── 主体区域 ──
@@ -59,19 +57,6 @@ class MainWindow(ctk.CTk):
             fg_color="#95a5a6", hover_color="#7f8c8d",
             command=self._delete_save,
         ).pack(side="left", padx=2)
-
-        # 右侧全局计数
-        global_frame = ctk.CTkFrame(top, fg_color="transparent")
-        global_frame.pack(side="right", padx=(0, 12))
-
-        ctk.CTkLabel(global_frame, text="全局计数", font=ctk.CTkFont(size=13)).pack(side="left", padx=(0, 6))
-        self._global_counter = CounterDisplay(global_frame, font=ctk.CTkFont(size=24, weight="bold"))
-        self._global_counter.pack(side="left")
-        ctk.CTkButton(
-            global_frame, text="↺ 重置", width=70,
-            fg_color="#7f8c8d", hover_color="#636e72",
-            command=self._on_global_reset,
-        ).pack(side="left", padx=(8, 0))
 
     def _build_body(self):
         body = ctk.CTkFrame(self, fg_color="transparent")
@@ -170,9 +155,6 @@ class MainWindow(ctk.CTk):
         for elem in ELEMENTS:
             self._element_card.update_counter(elem, slot.element_pool.get(elem, 0))
 
-        # 全局计数
-        self._global_counter.set_count(slot.global_counter)
-
         # 日志
         display_texts = [log.format_display() for log in slot.logs]
         pool_types = [log.pool_type for log in slot.logs]
@@ -183,7 +165,6 @@ class MainWindow(ctk.CTk):
         self._family_card.refresh_from_data({})
         for elem in ELEMENTS:
             self._element_card.update_counter(elem, 0)
-        self._global_counter.set_count(0)
         self._log_panel.clear_logs()
 
     # ────────────────────── 池子操作回调 ──────────────────────
@@ -210,11 +191,7 @@ class MainWindow(ctk.CTk):
         if not slot:
             return
         logs = []
-        if action == "add":
-            logs = slot.family_add(spirit_name)
-            if logs:
-                self._family_card.refresh_from_data(slot.family_pool)
-        elif action == "increase":
+        if action == "increase":
             logs = slot.family_increase(spirit_name)
             self._family_card.update_counter(spirit_name, slot.family_pool.get(spirit_name, 0))
         elif action == "decrease":
@@ -223,9 +200,6 @@ class MainWindow(ctk.CTk):
         elif action == "reset":
             logs = slot.family_reset(spirit_name)
             self._family_card.update_counter(spirit_name, 0)
-        elif action == "delete":
-            logs = slot.family_delete(spirit_name)
-            self._family_card.remove_row(spirit_name)
 
         self._after_operation(slot, logs)
 
@@ -245,30 +219,13 @@ class MainWindow(ctk.CTk):
         self._element_card.update_counter(element, slot.element_pool.get(element, 0))
 
     def _after_operation(self, slot: SaveSlot, logs):
-        """操作后统一更新：全局计数、日志、持久化"""
+        """操作后统一更新：日志、持久化"""
         if logs:
-            self._global_counter.set_count(slot.global_counter)
             for log in logs:
                 self._log_panel.add_log(log.format_display(), log.pool_type)
         self._save_svc.save_current()
 
     # ── 辅助 ──
-
-    def _on_global_reset(self):
-        """全局计数单独归零（异色提前出现时使用）"""
-        slot = self._save_svc.current
-        if not slot or slot.global_counter == 0:
-            return
-        dialog = ConfirmDialog(self, "确认重置", f"当前全局计数为 {slot.global_counter}，确定要重置为 0 吗？")
-        if not dialog.result:
-            return
-        logs = slot.global_reset()
-        if logs:
-            beep()
-            self._global_counter.set_count(0)
-            for log in logs:
-                self._log_panel.add_log(log.format_display(), log.pool_type)
-            self._save_svc.save_current()
 
     def _show_error(self, message: str):
         dialog = ctk.CTkToplevel(self)
