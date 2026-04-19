@@ -21,11 +21,6 @@ class ElementPoolCard(ctk.CTkFrame):
         header = ctk.CTkFrame(self, fg_color="transparent")
         header.pack(fill="x", padx=12, pady=(12, 4))
         ctk.CTkLabel(
-            header, text="⚡", width=24,
-            font=ctk.CTkFont(size=14),
-            anchor="e",
-        ).pack(side="left", padx=(0, 2))
-        ctk.CTkLabel(
             header, text="属性池",
             font=ctk.CTkFont(size=16, weight="bold"),
             anchor="w",
