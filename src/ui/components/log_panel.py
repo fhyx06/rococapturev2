@@ -7,11 +7,11 @@ from src.models.constants import POOL_RANDOM, POOL_FAMILY, POOL_ELEMENT
 class LogPanel(ctk.CTkFrame):
     """操作日志面板 —— 展示最近的操作记录"""
 
-    # 日志池子类型 → 显示标签
+    # 日志池子类型 → 显示前缀
     _pool_labels = {
-        POOL_RANDOM: "🎲",
-        POOL_FAMILY: "🏠",
-        POOL_ELEMENT: "⚡",
+        POOL_RANDOM: "[随机]",
+        POOL_FAMILY: "[家族]",
+        POOL_ELEMENT: "[属性]",
     }
 
     def __init__(self, master, **kwargs):
@@ -22,7 +22,7 @@ class LogPanel(ctk.CTkFrame):
         header.pack(fill="x", padx=10, pady=(10, 4))
 
         ctk.CTkLabel(
-            header, text="📋 操作日志",
+            header, text="操作日志",
             font=ctk.CTkFont(size=14, weight="bold"),
         ).pack(side="left")
 
@@ -49,7 +49,7 @@ class LogPanel(ctk.CTkFrame):
 
     def add_log(self, display_text: str, pool_type: str):
         """新增一条日志"""
-        icon = self._pool_labels.get(pool_type, "📌")
+        icon = self._pool_labels.get(pool_type, "[其他]")
         line = f"{icon} {display_text}"
         self._all_lines.append(line)
         self._all_tags.append(pool_type)

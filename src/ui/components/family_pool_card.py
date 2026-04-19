@@ -31,11 +31,6 @@ class FamilyPoolCard(ctk.CTkFrame):
         header = ctk.CTkFrame(self, fg_color="transparent")
         header.pack(fill="x", padx=12, pady=(12, 4))
         ctk.CTkLabel(
-            header, text="🏠", width=24,
-            font=ctk.CTkFont(size=14),
-            anchor="e",
-        ).pack(side="left", padx=(0, 2))
-        ctk.CTkLabel(
             header, text="家族池",
             font=ctk.CTkFont(size=16, weight="bold"),
             anchor="w",
@@ -45,7 +40,7 @@ class FamilyPoolCard(ctk.CTkFrame):
         search_frame = ctk.CTkFrame(self, fg_color="transparent")
         search_frame.pack(fill="x", padx=12, pady=(0, 4))
 
-        self._search_entry = ctk.CTkEntry(search_frame, width=200, placeholder_text="🔍 搜索精灵...")
+        self._search_entry = ctk.CTkEntry(search_frame, width=200, placeholder_text="搜索精灵...")
         self._search_entry.pack(side="left")
         self._search_entry.bind("<KeyRelease>", lambda e: self._filter_list())
 

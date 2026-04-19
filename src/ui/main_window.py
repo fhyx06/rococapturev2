@@ -69,9 +69,9 @@ class MainWindow(ctk.CTk):
         self._tabview = ctk.CTkTabview(left)
         self._tabview.pack(fill="both", expand=True, padx=5, pady=5)
 
-        tab_random = self._tabview.add("🎲 随机池")
-        tab_family = self._tabview.add("🏠 家族池")
-        tab_element = self._tabview.add("⚡ 属性池")
+        tab_random = self._tabview.add("随机池")
+        tab_family = self._tabview.add("家族池")
+        tab_element = self._tabview.add("属性池")
 
         self._random_card = RandomPoolCard(tab_random, on_change=self._on_random_change)
         self._random_card.pack(fill="both", expand=True, padx=5, pady=5)
