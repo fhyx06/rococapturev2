@@ -20,8 +20,8 @@ class MainWindow(ctk.CTk):
         self._save_svc = save_service
 
         self.title("RocoCaptureV2 — 洛克王国异色保底追踪")
-        self.geometry("960x820")
-        self.minsize(800, 700)
+        self.geometry("1100x820")
+        self.minsize(920, 700)
 
         # ── 顶栏：存档选择 ──
         self._build_top_bar()
