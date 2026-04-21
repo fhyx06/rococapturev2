@@ -1,4 +1,6 @@
 """主窗口 —— 整合三个池子、日志面板、存档管理"""
+import os
+from PIL import Image, ImageTk
 import customtkinter as ctk
 
 from src.models.save_slot import SaveSlot
@@ -22,6 +24,15 @@ class MainWindow(ctk.CTk):
         self.title("RocoCaptureV2 — 洛克王国异色保底追踪")
         self.geometry("1100x820")
         self.minsize(920, 700)
+
+        # 窗口图标（左上角 + 任务栏）
+        icon_path = os.path.join(os.path.dirname(__file__), "..", "assets", "icons", "app_icon.ico")
+        if os.path.exists(icon_path):
+            self.iconbitmap(icon_path)
+            # wm_iconphoto 修复 Windows 任务栏不显示自定义图标的问题
+            img = Image.open(icon_path)
+            self._icon_photo = ImageTk.PhotoImage(img.resize((32, 32), Image.LANCZOS))
+            self.wm_iconphoto(False, self._icon_photo)
 
         # ── 顶栏：存档选择 ──
         self._build_top_bar()
