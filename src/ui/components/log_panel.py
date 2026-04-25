@@ -38,7 +38,7 @@ class LogPanel(ctk.CTkFrame):
         filter_frame.pack(side="right")
 
         # 日志文本区域 width：日志区域宽度
-        self._text = ctk.CTkTextbox(self, height=180, width=430, state="disabled",
+        self._text = ctk.CTkTextbox(self, height=180, width=450, state="disabled",
                                      font=ctk.CTkFont(size=13, family="Consolas"))
         self._text.pack(fill="both", expand=True, padx=10, pady=(0, 10))
 
