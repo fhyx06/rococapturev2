@@ -1,4 +1,4 @@
-<img alt="LOGO" src="<img src="https://cos.blanktime.cn/assets/images/%E6%B0%B4%E8%93%9D%E8%93%9D.png"/>" width="256" height="256" />
+<img src="https://cos.blanktime.cn/assets/images/%E6%B0%B4%E8%93%9D%E8%93%9D.png" alt="LOGO" width="256" height="256" />
 
 # 洛克王国 · 异色保底追踪工具
 
@@ -53,34 +53,41 @@ python -m venv .venv
 
 ```
 RocoCaptureV2/
-├── main.py                         # 顶层入口
-├── requirements.txt                # 依赖声明
-├── saves/                          # 存档目录（运行时自动生成）
+├── main.py                            # 顶层入口
+├── requirements.txt                   # 依赖声明
+├── saves/                             # 存档目录（运行时自动生成）
 │   └── <存档名>.json
 └── src/
-    ├── app.py                      # 应用主控（DPI适配、主题、服务初始化）
+    ├── __init__.py
+    ├── app.py                         # 应用主控（DPI适配、主题、服务初始化）
     ├── models/
-    │   ├── constants.py            # 枚举常量（属性列表、保底阈值、颜色）
-    │   └── save_slot.py            # 核心数据模型（三池 + 全局计数 + 日志）
+    │   ├── __init__.py
+    │   ├── constants.py               # 枚举常量（属性列表、保底阈值、颜色）
+    │   └── save_slot.py               # 核心数据模型（三池 + 日志）
     ├── services/
-    │   └── save_service.py         # 存档读写服务（JSON 持久化）
-    ├── ui/
-    │   ├── main_window.py          # 主窗口（布局 + 事件分发）
-    │   ├── components/
-    │   │   ├── counter_display.py  # 计数展示组件（支持保底色彩预警）
-    │   │   ├── random_pool_card.py # 随机池卡片
-    │   │   ├── family_pool_card.py # 家族池卡片
-    │   │   ├── element_pool_card.py# 属性池卡片（含属性图标）
-    │   │   └── log_panel.py        # 操作日志面板
-    │   └── dialogs/
-    │       ├── confirm_dialog.py   # 通用确认弹窗
-    │       └── create_save_dialog.py # 新建存档弹窗
+    │   ├── __init__.py
+    │   └── save_service.py            # 存档读写服务
     ├── assets/
-    │   ├── icons/                   # 18 种属性图标（PNG）
-    │   ├── sounds/                  # 音效文件（WAV）
-    │   └── icon_loader.py           # 图标加载工具（带缓存）
+    │   ├── __init__.py
+    │   ├── icon_loader.py             # 图标加载工具
+    │   ├── icons/                     # 18 种属性图标
+    │   ├── seasons/                   # 赛季 JSON 配置
+    │   ├── sounds/                    # 音效文件
+    │   └── spirits/                   # 异色精灵图
+    ├── ui/
+    │   ├── main_window.py             # 主窗口
+    │   ├── components/
+    │   │   ├── counter_display.py     # 计数展示组件
+    │   │   ├── random_pool_card.py    # 随机池卡片
+    │   │   ├── family_pool_card.py    # 家族池卡片
+    │   │   ├── element_pool_card.py   # 属性池卡片
+    │   │   └── log_panel.py           # 操作日志面板
+    │   └── dialogs/
+    │       ├── __init__.py
+    │       └── confirm_dialog.py      # 通用确认弹窗
     └── utils/
-        └── beep.py                 # 音效播放工具（WAV / 系统蜂鸣回退）
+        ├── __init__.py
+        └── beep.py                   # 音效播放工具
 ```
 
 ---
@@ -131,8 +138,9 @@ RocoCaptureV2/
   "name": "主账号",
   "random_pool": 12,
   "family_pool": {
-    "柴渣虫": 5,
-    "治愈兔": 23
+    "No.041 奇丽草": 5,
+    "No.131 恶魔狼": 21,
+    // ... 其余精灵
   },
   "element_pool": {
     "火": 8,
@@ -142,12 +150,11 @@ RocoCaptureV2/
   "global_count": 35,
   "logs": [
     {
-      "time": "2077-07-07 14:30:00",
-      "pool": "random",
+      "timestamp": "2077-07-07 07:07:07",
+      "pool_type": "random",
       "action": "increase",
       "target": "柴渣虫",
-      "count": 12,
-      "global": 35
+      "count_after": 1
     }
     // ...
   ]
