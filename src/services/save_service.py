@@ -8,7 +8,7 @@ from typing import Callable
 
 from src.models.save_slot import SaveSlot
 from src.models.constants import SAVES_DIR
-from src.assets.icon_loader import list_s1_spirits
+from src.assets.icon_loader import load_seasons
 
 
 class SaveService:
@@ -45,10 +45,11 @@ class SaveService:
         if path.exists():
             raise FileExistsError(f"存档 '{name}' 已存在")
         slot = SaveSlot(name)
-        # 首次新建存档：预填 S1 全部异色精灵（格式：No.041 奇丽草）
-        for no, spirit in list_s1_spirits():
-            display_name = f"No.{no:03d} {spirit}"
-            slot.family_pool[display_name] = 0
+        # 首次新建存档：预填所有赛季的全部异色精灵（格式：No.041 奇丽草）
+        for season_data in load_seasons():
+            for spirit in season_data.get("spirits", []):
+                display_name = f"No.{spirit['no']:03d} {spirit['name']}"
+                slot.family_pool[display_name] = 0
         self._write_json(path, slot.to_dict())
         self._current = slot
         self._current_path = path
@@ -57,12 +58,18 @@ class SaveService:
     # ── 加载 ──
 
     def load_save(self, name: str) -> SaveSlot:
-        """从磁盘加载存档"""
+        """从磁盘加载存档；自动补充新增赛季精灵"""
         path = self._save_path(name)
         if not path.exists():
             raise FileNotFoundError(f"存档 '{name}' 不存在")
         data = self._read_json(path)
         slot = SaveSlot.from_dict(data)
+        # 兼容旧存档：补充存档创建后新增的赛季精灵（计数为 0）
+        for season_data in load_seasons():
+            for spirit in season_data.get("spirits", []):
+                display_name = f"No.{spirit['no']:03d} {spirit['name']}"
+                if display_name not in slot.family_pool:
+                    slot.family_pool[display_name] = 0
         self._current = slot
         self._current_path = path
         return slot

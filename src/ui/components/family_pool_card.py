@@ -1,19 +1,25 @@
-"""家族池卡片 —— S1 赛季异色追踪总览（手风琴）"""
+"""家族池卡片 —— 多赛季异色追踪总览（数据驱动手风琴）"""
 import customtkinter as ctk
 
 from src.ui.components.counter_display import CounterDisplay
 from src.utils.beep import beep
-from src.assets.icon_loader import load_spirit_icon, list_s1_spirits
+from src.assets.icon_loader import load_spirit_icon, load_seasons
 
 
 class FamilyPoolCard(ctk.CTkFrame):
-    """家族池：S1 赛季异色追踪总览手风琴，支持选中后增加/减少/重置"""
+    """
+    家族池：从 src/assets/seasons/*.json 动态加载赛季配置，
+    每个赛季渲染为一个可折叠的手风琴块。
+    新增赛季只需放置对应 JSON 文件，无需修改任何代码。
+    """
 
     def __init__(self, master, on_change=None, **kwargs):
         super().__init__(master, **kwargs)
         self._on_change = on_change
-        self._counters: dict[str, CounterDisplay] = {}
+        self._counters: dict[str, CounterDisplay] = {}  # display_name → CounterDisplay
         self._selected: str | None = None
+        self._season_sections: list[dict] = []
+        self._icon_refs: list = []  # 防止图片被 GC
 
         # ── 底部按钮（先 pack bottom，确保始终固定在底部） ──
         btn_frame = ctk.CTkFrame(self, fg_color="transparent")
@@ -44,40 +50,72 @@ class FamilyPoolCard(ctk.CTkFrame):
         self._search_entry.pack(side="left")
         self._search_entry.bind("<KeyRelease>", lambda e: self._filter_list())
 
-        # ── S1 手风琴标题 ──
-        self._s1_expanded = True
-        title_btn = ctk.CTkButton(
-            self,
-            text="▼  S1 赛季异色追踪总览",
+        # ── 外层滚动区（容纳所有赛季） ──
+        self._outer_scroll = ctk.CTkScrollableFrame(self)
+        self._outer_scroll.pack(fill="both", expand=True, padx=12, pady=(0, 4))
+
+        # ── 动态加载所有赛季 ──
+        seasons = load_seasons()
+        if not seasons:
+            ctk.CTkLabel(
+                self._outer_scroll,
+                text="未找到赛季配置\n请在 src/assets/seasons/ 放置 JSON 文件",
+                text_color=("gray50", "gray60"),
+            ).pack(pady=20)
+        for season_data in seasons:
+            self._build_season_section(season_data)
+
+    # ──────────────────── 构建赛季块 ────────────────────
+
+    def _build_season_section(self, season_data: dict):
+        """为一个赛季创建折叠头 + 精灵行容器"""
+        season_id = season_data.get("season", "?")
+        label = season_data.get("label", f"{season_id} 赛季追踪")
+        spirits = season_data.get("spirits", [])
+
+        # 折叠按钮
+        header_btn = ctk.CTkButton(
+            self._outer_scroll,
+            text=f"▼  {label}",
             anchor="w",
             fg_color=("gray80", "gray25"),
             hover_color=("gray70", "gray30"),
             text_color=("gray10", "gray90"),
             font=ctk.CTkFont(size=13, weight="bold"),
             height=30,
-            command=self._toggle_s1,
         )
-        title_btn.pack(fill="x", padx=12, pady=(0, 2))
-        self._s1_title_btn = title_btn
+        header_btn.pack(fill="x", pady=(4, 2))
 
-        # ── 滚动列表区（填充剩余空间） ──
-        self._scroll_frame = ctk.CTkScrollableFrame(self)
-        self._scroll_frame.pack(fill="both", expand=True, padx=12, pady=(0, 4))
+        # 精灵行容器（默认折叠，不 pack）
+        body_frame = ctk.CTkFrame(self._outer_scroll, fg_color="transparent")
 
-        # 构建所有 S1 精灵行
-        self._s1_spirit_icons: dict[str, ctk.CTkImage | None] = {}
-        for no, name in list_s1_spirits():
-            self._create_s1_row(no, name)
+        section: dict = {
+            "season": season_id,
+            "label": label,
+            "expanded": False,
+            "header_btn": header_btn,
+            "body_frame": body_frame,
+        }
+        self._season_sections.append(section)
 
-    # ── S1 行构建 ──
+        # 绑定折叠/展开
+        header_btn.configure(command=lambda s=section: self._toggle_section(s))
 
-    def _create_s1_row(self, no: int, name: str):
-        """创建一行精灵条目（图标+编号+名称+计数器+进度条）"""
+        # 默认显示折叠箭头
+        header_btn.configure(text=f"▶  {label}")
+
+        # 构建精灵行
+        for spirit in spirits:
+            self._create_spirit_row(body_frame, spirit["no"], spirit["name"], season_id)
+
+    def _create_spirit_row(self, parent: ctk.CTkFrame, no: int, name: str, season: str):
+        """创建一行精灵条目（图标 + 编号 + 名称 + 计数器 + 进度条）"""
         display_name = f"No.{no:03d} {name}"
-        icon = load_spirit_icon(name, size=36)
-        self._s1_spirit_icons[name] = icon  # 防止 GC
+        icon = load_spirit_icon(name, size=36, season=season)
+        if icon:
+            self._icon_refs.append(icon)  # 防 GC
 
-        row = ctk.CTkFrame(self._scroll_frame, fg_color="transparent", cursor="hand2")
+        row = ctk.CTkFrame(parent, fg_color="transparent", cursor="hand2")
         row.pack(fill="x", pady=3)
         row._spirit_name = display_name  # type: ignore
 
@@ -121,79 +159,97 @@ class FamilyPoolCard(ctk.CTkFrame):
         # 点击选中
         def on_click(event, r=row, n=display_name):
             self._select(n, r)
-        row.bind("<Button-1>", on_click)
-        img_label.bind("<Button-1>", on_click)
-        no_label.bind("<Button-1>", on_click)
-        name_label.bind("<Button-1>", on_click)
-        counter.bind("<Button-1>", on_click)
 
-    # ── 手风琴折叠 ──
+        for widget in (row, img_label, no_label, name_label, counter):
+            widget.bind("<Button-1>", on_click)
 
-    def _toggle_s1(self):
-        """展开/收起 S1 总览"""
-        self._s1_expanded = not self._s1_expanded
-        if self._s1_expanded:
-            self._scroll_frame.pack(fill="both", expand=True, padx=12, pady=(0, 4))
-            self._s1_title_btn.configure(text="▼  S1 赛季异色追踪总览")
+    # ──────────────────── 手风琴折叠 ────────────────────
+
+    def _toggle_section(self, section: dict):
+        """手风琴：展开当前，收起其他所有"""
+        for s in self._season_sections:
+            if s is section:
+                # 切换当前：折叠→展开，或展开→折叠
+                s["expanded"] = not s["expanded"]
+            elif s["expanded"]:
+                # 收起其他已展开的
+                s["expanded"] = False
+                s["body_frame"].pack_forget()
+                s["header_btn"].configure(text=f"▶  {s['label']}")
+
+        if section["expanded"]:
+            # 用 after= 确保 body 紧跟在 header_btn 之后，避免布局错乱
+            section["body_frame"].pack(fill="x", pady=(0, 4), after=section["header_btn"])
+            section["header_btn"].configure(text=f"▼  {section['label']}")
         else:
-            self._scroll_frame.pack_forget()
-            self._s1_title_btn.configure(text="▶  S1 赛季异色追踪总览")
+            section["body_frame"].pack_forget()
+            section["header_btn"].configure(text=f"▶  {section['label']}")
 
-    # ── 搜索过滤 ──
+    # ──────────────────── 搜索过滤（跨所有赛季） ────────────────────
 
     def _filter_list(self):
         query = self._search_entry.get().strip().lower()
-        for widget in self._scroll_frame.winfo_children():
-            name = getattr(widget, "_spirit_name", "")
-            # 同时匹配名称和纯数字编号（如输入 "41" 可匹配 "No.041"）
-            match_text = name.lower()
-            num_only = "".join(c for c in match_text if c.isdigit())
-            if query and query not in match_text and query not in num_only:
-                widget.pack_forget()
-            else:
-                widget.pack(fill="x", pady=3)
+        for section in self._season_sections:
+            for widget in section["body_frame"].winfo_children():
+                name = getattr(widget, "_spirit_name", "")
+                match_text = name.lower()
+                num_only = "".join(c for c in match_text if c.isdigit())
+                if query and query not in match_text and query not in num_only:
+                    widget.pack_forget()
+                else:
+                    widget.pack(fill="x", pady=3)
 
-    # ── 外部调用：同步数据 ──
+    # ──────────────────── 外部调用：同步数据 ────────────────────
 
     def refresh_from_data(self, family_pool: dict[str, int]):
         """根据存档数据刷新所有计数器和进度条"""
         self._selected = None
-        for widget in self._scroll_frame.winfo_children():
-            if hasattr(widget, "_selected"):
-                widget.configure(fg_color="transparent")
-                del widget._selected  # type: ignore
-
-        for widget in self._scroll_frame.winfo_children():
-            display_name = getattr(widget, "_spirit_name", None)
-            if display_name is None:
-                continue
-            count = family_pool.get(display_name, 0)
-            counter = getattr(widget, "_counter", None)
-            progress = getattr(widget, "_progress", None)
-            if counter:
-                counter.set_count(count)
-                self._counters[display_name] = counter
-            if progress:
-                progress.set(min(count / 80, 1.0))
-
-    def update_counter(self, name: str, count: int):
-        if name in self._counters:
-            self._counters[name].set_count(count)
-        for widget in self._scroll_frame.winfo_children():
-            if getattr(widget, "_spirit_name", None) == name:
+        for section in self._season_sections:
+            for widget in section["body_frame"].winfo_children():
+                # 清除选中高亮
+                if hasattr(widget, "_selected"):
+                    widget.configure(fg_color="transparent")
+                    try:
+                        del widget._selected  # type: ignore
+                    except AttributeError:
+                        pass
+                # 刷新计数
+                display_name = getattr(widget, "_spirit_name", None)
+                if display_name is None:
+                    continue
+                count = family_pool.get(display_name, 0)
+                counter = getattr(widget, "_counter", None)
                 progress = getattr(widget, "_progress", None)
+                if counter:
+                    counter.set_count(count)
+                    self._counters[display_name] = counter
                 if progress:
                     progress.set(min(count / 80, 1.0))
-                break
 
-    # ── 内部方法 ──
+    def update_counter(self, name: str, count: int):
+        """单条更新计数器与进度条"""
+        if name in self._counters:
+            self._counters[name].set_count(count)
+        for section in self._season_sections:
+            for widget in section["body_frame"].winfo_children():
+                if getattr(widget, "_spirit_name", None) == name:
+                    progress = getattr(widget, "_progress", None)
+                    if progress:
+                        progress.set(min(count / 80, 1.0))
+                    return
+
+    # ──────────────────── 内部方法 ────────────────────
 
     def _select(self, name: str, row: ctk.CTkFrame):
-        for widget in self._scroll_frame.winfo_children():
-            if hasattr(widget, "_selected"):
-                widget.configure(fg_color="transparent")
-                del widget._selected  # type: ignore
-
+        """选中一行，清除其他所有赛季的选中状态"""
+        for section in self._season_sections:
+            for widget in section["body_frame"].winfo_children():
+                if hasattr(widget, "_selected"):
+                    widget.configure(fg_color="transparent")
+                    try:
+                        del widget._selected  # type: ignore
+                    except AttributeError:
+                        pass
         row.configure(fg_color=("gray85", "gray25"))
         row._selected = True  # type: ignore
         self._selected = name
