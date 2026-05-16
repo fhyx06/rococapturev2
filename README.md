@@ -1,4 +1,6 @@
-<img src="https://cos.blanktime.cn/assets/images/%E6%B0%B4%E8%93%9D%E8%93%9D.png" alt="LOGO" width="256" height="256" />
+<p align="center">
+  <img src="https://cos.blanktime.cn/assets/images/%E6%B0%B4%E8%93%9D%E8%93%9D.png" alt="LOGO" width="256" height="256" />
+</p>
 
 # 洛克王国 · 异色保底追踪工具
 
