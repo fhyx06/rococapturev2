@@ -1,4 +1,4 @@
-![](.\src\assets\icons\logo.png)
+<img alt="LOGO" src="<img src="https://cos.blanktime.cn/assets/images/%E6%B0%B4%E8%93%9D%E8%93%9D.png"/>" width="256" height="256" />
 
 # 洛克王国 · 异色保底追踪工具
 
