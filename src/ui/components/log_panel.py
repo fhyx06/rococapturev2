@@ -14,6 +14,13 @@ class LogPanel(ctk.CTkFrame):
         POOL_ELEMENT: "[属性]",
     }
 
+    # 日志颜色：
+    _pool_colors = {
+        POOL_FAMILY: "#A9B7C6",
+        POOL_RANDOM: "#5DADE2",
+        POOL_ELEMENT: "#58D68D",
+    }
+
     def __init__(self, master, **kwargs):
         super().__init__(master, **kwargs)
 
@@ -41,6 +48,11 @@ class LogPanel(ctk.CTkFrame):
         self._text = ctk.CTkTextbox(self, height=180, width=450, state="disabled",
                                      font=ctk.CTkFont(size=13, family="Consolas"))
         self._text.pack(fill="both", expand=True, padx=10, pady=(0, 10))
+
+        # 配置颜色 tag（兼容不同 CustomTkinter 版本）
+        tb = self._get_textbox()
+        for tag_name, color in (("family", "#A9B7C6"), ("random", "#5DADE2"), ("element", "#58D68D")):
+            tb.tag_config(tag_name, foreground=color)
 
         self._all_lines: list[str] = []
         self._all_tags: list[str] = []  # 每行对应的pool_type
@@ -72,6 +84,13 @@ class LogPanel(ctk.CTkFrame):
 
     # ── 内部方法 ──
 
+    def _get_textbox(self):
+        """安全获取 CTkTextbox 底层的 Tkinter Text 组件（兼容不同版本）"""
+        for attr in ("_text_box", "_textbox"):
+            if hasattr(self._text, attr):
+                return getattr(self._text, attr)
+        raise RuntimeError("无法获取 CTkTextbox 底层 Text 组件，CustomTkinter 版本不兼容")
+
     def _on_filter_change(self, value: str):
         self._refresh_display()
 
@@ -84,16 +103,24 @@ class LogPanel(ctk.CTkFrame):
         }
         pool_filter = filter_map.get(self._filter_var.get())
 
-        self._text.configure(state="normal")
-        self._text.delete("1.0", "end")
+        tb = self._get_textbox()
+        tb.configure(state="normal")
+        tb.delete("1.0", "end")
 
-        # 倒序显示（最新在上）
-        lines_to_show = []
-        tags_to_show = []
+        # 倒序显示（最新在上），插入时直接带颜色 tag
+        tag_map = {
+            POOL_FAMILY: "family",
+            POOL_RANDOM: "random",
+            POOL_ELEMENT: "element",
+        }
         for i in range(len(self._all_lines) - 1, -1, -1):
-            if pool_filter is None or self._all_tags[i] == pool_filter:
-                lines_to_show.append(self._all_lines[i])
+            if pool_filter is not None and self._all_tags[i] != pool_filter:
+                continue
+            line = self._all_lines[i]
+            tag_name = tag_map.get(self._all_tags[i])
+            if tag_name:
+                tb.insert("end", line + "\n", (tag_name,))
+            else:
+                tb.insert("end", line + "\n")
 
-        if lines_to_show:
-            self._text.insert("1.0", "\n".join(lines_to_show))
-        self._text.configure(state="disabled")
+        tb.configure(state="disabled")
