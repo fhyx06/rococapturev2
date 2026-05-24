@@ -16,7 +16,7 @@ class FamilyPoolCard(ctk.CTkFrame):
     def __init__(self, master, on_change=None, **kwargs):
         super().__init__(master, **kwargs)
         self._on_change = on_change
-        self._counters: dict[str, CounterDisplay] = {}  # display_name → CounterDisplay
+        self._counters: dict[str, list[CounterDisplay]] = {}  # display_name → CounterDisplay 列表
         self._selected: str | None = None
         self._season_sections: list[dict] = []
         self._icon_refs: list = []  # 防止图片被 GC
@@ -146,7 +146,7 @@ class FamilyPoolCard(ctk.CTkFrame):
         # 计数器
         counter = CounterDisplay(row, font=ctk.CTkFont(size=20, weight="bold"))
         counter.set_count(0)
-        self._counters[display_name] = counter
+        self._counters.setdefault(display_name, []).append(counter)
         counter.pack(side="left", padx=(0, 8))
 
         # 进度条
@@ -222,21 +222,19 @@ class FamilyPoolCard(ctk.CTkFrame):
                 progress = getattr(widget, "_progress", None)
                 if counter:
                     counter.set_count(count)
-                    self._counters[display_name] = counter
                 if progress:
                     progress.set(min(count / 80, 1.0))
 
     def update_counter(self, name: str, count: int):
         """单条更新计数器与进度条"""
-        if name in self._counters:
-            self._counters[name].set_count(count)
+        for counter in self._counters.get(name, []):
+            counter.set_count(count)
         for section in self._season_sections:
             for widget in section["body_frame"].winfo_children():
                 if getattr(widget, "_spirit_name", None) == name:
                     progress = getattr(widget, "_progress", None)
                     if progress:
                         progress.set(min(count / 80, 1.0))
-                    return
 
     # ──────────────────── 内部方法 ────────────────────
 
