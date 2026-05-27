@@ -18,6 +18,7 @@ class FamilyPoolCard(ctk.CTkFrame):
         self._on_change = on_change
         self._counters: dict[str, list[CounterDisplay]] = {}  # display_name → CounterDisplay 列表
         self._selected: str | None = None
+        self._selected_season: str = ""
         self._season_sections: list[dict] = []
         self._icon_refs: list = []  # 防止图片被 GC
 
@@ -31,6 +32,11 @@ class FamilyPoolCard(ctk.CTkFrame):
             btn_frame, text="重置", width=60,
             fg_color="#e74c3c", hover_color="#c0392b",
             command=self._do_reset,
+        ).pack(side="left", padx=3)
+        ctk.CTkButton(
+            btn_frame, text="出异色了！", width=96,
+            fg_color="#f39c12", hover_color="#d68910",
+            command=self._do_shiny,
         ).pack(side="left", padx=3)
 
         # ── 标题 ──
@@ -118,6 +124,7 @@ class FamilyPoolCard(ctk.CTkFrame):
         row = ctk.CTkFrame(parent, fg_color="transparent", cursor="hand2")
         row.pack(fill="x", pady=3)
         row._spirit_name = display_name  # type: ignore
+        row._season = season  # type: ignore
 
         # 图标
         if icon:
@@ -204,6 +211,7 @@ class FamilyPoolCard(ctk.CTkFrame):
     def refresh_from_data(self, family_pool: dict[str, int]):
         """根据存档数据刷新所有计数器和进度条"""
         self._selected = None
+        self._selected_season = ""
         for section in self._season_sections:
             for widget in section["body_frame"].winfo_children():
                 # 清除选中高亮
@@ -251,6 +259,7 @@ class FamilyPoolCard(ctk.CTkFrame):
         row.configure(fg_color=("gray85", "gray25"))
         row._selected = True  # type: ignore
         self._selected = name
+        self._selected_season = getattr(row, "_season", "")
 
     def _do_increase(self):
         if not self._selected:
@@ -278,3 +287,10 @@ class FamilyPoolCard(ctk.CTkFrame):
             beep()
             if self._on_change:
                 self._on_change("reset", self._selected)
+
+    def _do_shiny(self):
+        if not self._selected:
+            return
+        beep()
+        if self._on_change:
+            self._on_change("shiny", self._selected, self._selected_season)

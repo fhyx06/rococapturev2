@@ -51,6 +51,7 @@ class LogPanel(ctk.CTkFrame):
 
         # 配置颜色 tag（兼容不同 CustomTkinter 版本）
         tb = self._get_textbox()
+        tb.configure(wrap="none")
         for tag_name, color in (("family", "#A9B7C6"), ("random", "#5DADE2"), ("element", "#58D68D")):
             tb.tag_config(tag_name, foreground=color)
 

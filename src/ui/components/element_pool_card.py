@@ -44,6 +44,11 @@ class ElementPoolCard(ctk.CTkFrame):
             fg_color="#e74c3c", hover_color="#c0392b",
             command=self._do_reset,
         ).pack(side="left", padx=3)
+        ctk.CTkButton(
+            btn_frame, text="出异色了！", width=96,
+            fg_color="#f39c12", hover_color="#d68910",
+            command=self._do_shiny,
+        ).pack(side="left", padx=3)
 
     def _create_element_cell(self, parent, element: str):
         cell = ctk.CTkFrame(parent, cursor="hand2", corner_radius=8)
@@ -135,3 +140,10 @@ class ElementPoolCard(ctk.CTkFrame):
             beep()
             if self._on_change:
                 self._on_change("reset", self._selected)
+
+    def _do_shiny(self):
+        if not self._selected:
+            return
+        beep()
+        if self._on_change:
+            self._on_change("shiny", self._selected)

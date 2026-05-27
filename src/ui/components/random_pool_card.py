@@ -45,6 +45,11 @@ class RandomPoolCard(ctk.CTkFrame):
             fg_color="#e74c3c", hover_color="#c0392b",
             command=self._do_reset,
         ).pack(side="left", padx=4)
+        ctk.CTkButton(
+            btn_frame, text="出异色了！", width=100,
+            fg_color="#f39c12", hover_color="#d68910",
+            command=self._do_shiny,
+        ).pack(side="left", padx=4)
 
     # ── 外部调用 ──
 
@@ -79,3 +84,8 @@ class RandomPoolCard(ctk.CTkFrame):
             beep()
             if self._on_change:
                 self._on_change("reset")
+
+    def _do_shiny(self):
+        beep()
+        if self._on_change:
+            self._on_change("shiny")

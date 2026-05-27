@@ -19,6 +19,13 @@ _SPIRITS_DIR = Path(__file__).resolve().parent / "spirits"
 _SEASONS_DIR = Path(__file__).resolve().parent / "seasons"
 
 
+def _season_sort_key(season_data: dict) -> tuple[int, str]:
+    season_id = str(season_data.get("season", ""))
+    match = re.search(r"\d+", season_id)
+    number = int(match.group()) if match else -1
+    return number, season_id
+
+
 @lru_cache(maxsize=None)
 def load_element_icon(element: str, size: int = 20) -> ctk.CTkImage | None:
     """
@@ -75,7 +82,7 @@ def load_spirit_icon(spirit_name: str, size: int = 32, season: str | None = None
 
 def load_seasons() -> list[dict]:
     """
-    扫描 seasons/ 目录，返回按文件名排序的赛季数据列表。
+    扫描 seasons/ 目录，返回按赛季编号排序的赛季数据列表。
     每项格式：{"season": "S1", "label": "...", "spirits": [{"no": 41, "name": "奇丽草"}, ...]}
     """
     if not _SEASONS_DIR.exists():
@@ -88,4 +95,12 @@ def load_seasons() -> list[dict]:
             result.append(data)
         except (json.JSONDecodeError, OSError):
             continue
-    return result
+    return sorted(result, key=_season_sort_key)
+
+
+def get_latest_season() -> dict | None:
+    """返回编号最大的赛季配置；没有赛季配置时返回 None。"""
+    seasons = load_seasons()
+    if not seasons:
+        return None
+    return seasons[-1]

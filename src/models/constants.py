@@ -21,11 +21,13 @@ ACTION_INCREASE = "increase"
 ACTION_DECREASE = "decrease"
 ACTION_RESET = "reset"
 ACTION_DELETE = "delete"
+ACTION_SHINY = "shiny"
 
 # 日志池子类型
 POOL_RANDOM = "random"
 POOL_FAMILY = "family"
 POOL_ELEMENT = "element"
+POOL_UNKNOWN = "unknown"
 
 # 文件
 SAVES_DIR = "saves"
