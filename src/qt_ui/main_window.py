@@ -4,7 +4,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QMargins, QTimer
+from PySide6.QtCore import Qt, QMargins, QSize, QTimer
 from PySide6.QtGui import QIcon, QColor
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -103,6 +103,7 @@ class ShinyChoiceDialog(QDialog):
     ):
         super().__init__(parent)
         self.setWindowTitle("记录异色")
+        self.setMinimumWidth(360)
         self._pool_type = pool_type
         self._pity_count = pity_count
         self._fixed_spirit = fixed_spirit
@@ -113,7 +114,12 @@ class ShinyChoiceDialog(QDialog):
         self.result_data: dict | None = None
 
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(18, 18, 18, 18)
+        layout.setSpacing(12)
         form = QFormLayout()
+        form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
+        form.setHorizontalSpacing(12)
+        form.setVerticalSpacing(10)
         form.addRow("当前保底", QLabel(str(pity_count)))
         if element:
             element_row = QWidget()
@@ -198,13 +204,19 @@ class ManualShinyDialog(QDialog):
     def __init__(self, parent: QWidget, slot: SaveSlot):
         super().__init__(parent)
         self.setWindowTitle("手动添加异色记录")
+        self.setMinimumWidth(400)
         self._slot = slot
         self._seasons = load_seasons()
         self._season_by_id = {str(item.get("season", "")): item for item in self._seasons}
         self.result_data: dict | None = None
 
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(18, 18, 18, 18)
+        layout.setSpacing(12)
         form = QFormLayout()
+        form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
+        form.setHorizontalSpacing(12)
+        form.setVerticalSpacing(10)
 
         self.pool_combo = QComboBox()
         for key, label in self._pool_labels.items():
@@ -333,37 +345,42 @@ class QtMainWindow(QMainWindow):
 
     def _build_ui(self) -> None:
         root = QWidget()
+        root.setObjectName("appRoot")
         main_layout = QVBoxLayout(root)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
 
         # ── 顶栏 ──
         top_bar = QHBoxLayout()
-        top_bar.setContentsMargins(12, 8, 12, 8)
+        top_bar.setContentsMargins(16, 10, 16, 10)
+        top_bar.setSpacing(8)
 
         logo = QLabel("RocoCapture V2")
-        logo.setStyleSheet("font-size: 18px; font-weight: 700; color: #3498db;")
+        logo.setObjectName("brandLabel")
         top_bar.addWidget(logo)
 
         top_bar.addStretch()
         top_bar.addWidget(QLabel("存档:"))
         self.save_combo = QComboBox()
-        self.save_combo.setMinimumWidth(120)
+        self.save_combo.setMinimumWidth(160)
         self.save_combo.currentTextChanged.connect(self._on_save_selected)
         top_bar.addWidget(self.save_combo)
 
+        top_bar.addSpacing(10)
         for text, handler in [
             ("新建", self._create_save),
             ("删除", self._delete_save),
             ("重命名", self._rename_save),
         ]:
             btn = QPushButton(text)
+            btn.setMinimumWidth(62)
             btn.clicked.connect(handler)
             top_bar.addWidget(btn)
 
-        top_bar.addSpacing(16)
+        top_bar.addSpacing(18)
         for text, handler in [("导入", self._import_save), ("导出", self._export_save)]:
             btn = QPushButton(text)
+            btn.setMinimumWidth(62)
             btn.clicked.connect(handler)
             top_bar.addWidget(btn)
 
@@ -371,8 +388,8 @@ class QtMainWindow(QMainWindow):
 
         # ── 分隔线 ──
         sep = QWidget()
+        sep.setObjectName("divider")
         sep.setFixedHeight(1)
-        sep.setStyleSheet("background-color: #3a3a3a;")
         main_layout.addWidget(sep)
 
         # ── 主体：左侧导航 + 中央堆叠页 + 右侧日志 ──
@@ -381,8 +398,9 @@ class QtMainWindow(QMainWindow):
 
         # 左侧导航
         self.sidebar = QListWidget()
-        self.sidebar.setFixedWidth(110)
-        self.sidebar.setSpacing(4)
+        self.sidebar.setObjectName("sidebar")
+        self.sidebar.setFixedWidth(146)
+        self.sidebar.setSpacing(6)
         for icon, label in [
             ("🎲", "随机池"),
             ("👪", "家族池"),
@@ -390,19 +408,20 @@ class QtMainWindow(QMainWindow):
             ("📊", "异色明细"),
             ("⚙️", "设置"),
         ]:
-            item = QListWidgetItem(f"  {icon}  {label}")
-            item.setSizeHint(item.sizeHint().grownBy(QMargins(0, 6, 0, 6)))
+            item = QListWidgetItem(f"{icon}  {label}")
+            item.setSizeHint(QSize(124, 48))
             self.sidebar.addItem(item)
         body.addWidget(self.sidebar)
 
         # 分隔竖线
         vsep = QWidget()
+        vsep.setObjectName("divider")
         vsep.setFixedWidth(1)
-        vsep.setStyleSheet("background-color: #3a3a3a;")
         body.addWidget(vsep)
 
         # 中央堆叠页（必须早于 sidebar 信号连接，否则 _on_nav_changed 报错）
         self.page_stack = QStackedWidget()
+        self.page_stack.setObjectName("pageStack")
         self._build_random_page()
         self._build_family_page()
         self._build_element_page()
@@ -412,9 +431,10 @@ class QtMainWindow(QMainWindow):
 
         # 右侧日志
         self.log_text = QTextEdit()
+        self.log_text.setObjectName("logPanel")
         self.log_text.setReadOnly(True)
         self.log_text.setLineWrapMode(QTextEdit.LineWrapMode.NoWrap)
-        self.log_text.setFixedWidth(300)
+        self.log_text.setFixedWidth(236)
         body.addWidget(self.log_text)
 
         main_layout.addLayout(body, 1)
@@ -424,31 +444,24 @@ class QtMainWindow(QMainWindow):
         self.sidebar.setCurrentRow(0)
 
         self.setCentralWidget(root)
-        self.resize(1100, 680)
-        self.setMinimumSize(900, 550)
+        self.resize(1240, 760)
+        self.setMinimumSize(1040, 620)
 
     def _card_counter(self, label: str, widget_name: str = "") -> tuple[QWidget, QLabel]:
         """创建「大字号计数卡片」：标题行 + 超大计数。返回 (容器, 计数QLabel)。"""
         card = QWidget()
-        card.setStyleSheet("""
-            QWidget#counter_card {
-                background-color: #2b2b2b;
-                border: 1px solid #3f3f3f;
-                border-radius: 10px;
-            }
-        """)
-        card.setObjectName("counter_card")
+        card.setObjectName("counterCard")
         layout = QVBoxLayout(card)
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         title = QLabel(label)
+        title.setObjectName("counterTitle")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        title.setStyleSheet("font-size: 13px; color: #888; border: none;")
         layout.addWidget(title)
 
         count_label = QLabel("0")
+        count_label.setObjectName("counterValue")
         count_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        count_label.setStyleSheet("font-size: 64px; font-weight: 700; color: #ecf0f1; border: none;")
         layout.addWidget(count_label)
 
         if widget_name:
@@ -460,14 +473,14 @@ class QtMainWindow(QMainWindow):
         """创建统一的操作按钮行 [+1] [-1] [重置] [出异色]。返回 layout 供调用方绑定信号。"""
         row = QHBoxLayout()
         row.setSpacing(12)
-        for text, style in [
-            ("+1", "background-color: #27ae60; font-size: 18px; padding: 10px 24px;"),
-            ("-1", "background-color: #c0392b; font-size: 18px; padding: 10px 24px;"),
-            ("↺ 重置", "font-size: 18px; padding: 10px 18px;"),
-            ("★ 出异色", "background-color: #f39c12; color: #fff; font-size: 18px; padding: 10px 18px;"),
+        for text, role in [
+            ("+1", "increase"),
+            ("-1", "decrease"),
+            ("↺ 重置", "reset"),
+            ("★ 出异色", "shiny"),
         ]:
             btn = QPushButton(text)
-            btn.setStyleSheet(style + " border-radius: 6px; border: none;")
+            btn.setProperty("role", role)
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
             row.addWidget(btn)
         return row
@@ -479,14 +492,13 @@ class QtMainWindow(QMainWindow):
 
         # 标题
         header = QLabel("随机池")
-        header.setStyleSheet("font-size: 20px; font-weight: 700; color: #ecf0f1;")
+        header.setObjectName("pageHeader")
         layout.addWidget(header)
 
         # 精灵名称输入
         self.random_name = QLineEdit()
         self.random_name.setPlaceholderText("精灵名称（可选，回车=增加）")
         self.random_name.returnPressed.connect(self._random_increase)
-        self.random_name.setStyleSheet("font-size: 14px; padding: 6px;")
         layout.addWidget(self.random_name)
 
         layout.addSpacing(12)
@@ -515,7 +527,7 @@ class QtMainWindow(QMainWindow):
         layout.setContentsMargins(24, 20, 24, 20)
 
         header = QLabel("家族池")
-        header.setStyleSheet("font-size: 20px; font-weight: 700; color: #ecf0f1;")
+        header.setObjectName("pageHeader")
         layout.addWidget(header)
 
         # 上半：家族树 + 计数卡片
@@ -528,6 +540,8 @@ class QtMainWindow(QMainWindow):
         self.family_tree.header().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
         self.family_tree.header().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
         self.family_tree.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.family_tree.setIconSize(QSize(44, 44))
+        self.family_tree.setIndentation(18)
         self.family_tree.currentItemChanged.connect(self._on_family_selected)
         splitter.addWidget(self.family_tree)
 
@@ -536,8 +550,8 @@ class QtMainWindow(QMainWindow):
         right_layout.setContentsMargins(12, 0, 0, 0)
 
         self.family_detail_title = QLabel("请选择精灵")
+        self.family_detail_title.setObjectName("mutedLabel")
         self.family_detail_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.family_detail_title.setStyleSheet("font-size: 14px; color: #888;")
         right_layout.addWidget(self.family_detail_title)
 
         card, self.family_detail_count = self._card_counter("保底进度")
@@ -565,10 +579,7 @@ class QtMainWindow(QMainWindow):
             self.family_detail_title.setText(data["name"])
             count = self._save_svc.current.family_pool.get(data["name"], 0) if self._save_svc.current else 0
             self.family_detail_count.setText(str(count))
-            color = self._pity_color(count)
-            self.family_detail_count.setStyleSheet(
-                f"font-size: 64px; font-weight: 700; color: {color if color else '#ecf0f1'}; border: none;"
-            )
+            self._set_counter_state(self.family_detail_count, count)
 
     def _build_element_page(self) -> None:
         page = QWidget()
@@ -576,13 +587,15 @@ class QtMainWindow(QMainWindow):
         layout.setContentsMargins(24, 20, 24, 20)
 
         header = QLabel("属性池")
-        header.setStyleSheet("font-size: 20px; font-weight: 700; color: #ecf0f1;")
+        header.setObjectName("pageHeader")
         layout.addWidget(header)
 
         splitter = QSplitter(Qt.Orientation.Horizontal)
 
         self.element_list = QListWidget()
         self.element_list.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.element_list.setIconSize(QSize(34, 34))
+        self.element_list.setSpacing(6)
         self.element_list.currentItemChanged.connect(self._on_element_selected)
         splitter.addWidget(self.element_list)
 
@@ -591,8 +604,8 @@ class QtMainWindow(QMainWindow):
         right_layout.setContentsMargins(12, 0, 0, 0)
 
         self.element_detail_title = QLabel("请选择属性")
+        self.element_detail_title.setObjectName("mutedLabel")
         self.element_detail_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.element_detail_title.setStyleSheet("font-size: 14px; color: #888;")
         right_layout.addWidget(self.element_detail_title)
 
         card, self.element_detail_count = self._card_counter("保底进度")
@@ -620,10 +633,7 @@ class QtMainWindow(QMainWindow):
             self.element_detail_title.setText(element)
             count = self._save_svc.current.element_pool.get(element, 0) if self._save_svc.current else 0
             self.element_detail_count.setText(str(count))
-            color = self._pity_color(count)
-            self.element_detail_count.setStyleSheet(
-                f"font-size: 64px; font-weight: 700; color: {color if color else '#ecf0f1'}; border: none;"
-            )
+            self._set_counter_state(self.element_detail_count, count)
 
     def _build_shiny_page(self) -> None:
         page = QWidget()
@@ -631,7 +641,7 @@ class QtMainWindow(QMainWindow):
         layout.setContentsMargins(24, 20, 24, 20)
 
         header = QLabel("异色明细")
-        header.setStyleSheet("font-size: 20px; font-weight: 700; color: #ecf0f1;")
+        header.setObjectName("pageHeader")
         layout.addWidget(header)
 
         top_row = QHBoxLayout()
@@ -647,6 +657,10 @@ class QtMainWindow(QMainWindow):
         self.shiny_table = QTableWidget(0, 6)
         self.shiny_table.setHorizontalHeaderLabels(["时间", "池子", "赛季", "精灵", "属性", "保底"])
         self.shiny_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
+        self.shiny_table.verticalHeader().setVisible(False)
+        self.shiny_table.verticalHeader().setDefaultSectionSize(42)
+        self.shiny_table.setAlternatingRowColors(True)
+        self.shiny_table.setIconSize(QSize(32, 32))
         self.shiny_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.shiny_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         layout.addWidget(self.shiny_table, 1)
@@ -659,7 +673,7 @@ class QtMainWindow(QMainWindow):
         layout.setContentsMargins(24, 20, 24, 20)
 
         header = QLabel("设置 / 关于")
-        header.setStyleSheet("font-size: 20px; font-weight: 700; color: #ecf0f1;")
+        header.setObjectName("pageHeader")
         layout.addWidget(header)
 
         info = QLabel(
@@ -670,7 +684,7 @@ class QtMainWindow(QMainWindow):
             "  · 预警阈值 70 抽（橙色提示）\n\n"
             "PySide6 / Qt 重构版"
         )
-        info.setStyleSheet("font-size: 14px; color: #aaa;")
+        info.setObjectName("mutedLabel")
         info.setWordWrap(True)
         layout.addWidget(info)
         layout.addStretch()
@@ -807,22 +821,36 @@ class QtMainWindow(QMainWindow):
             return COLOR_WARN
         return ""
 
+    @staticmethod
+    def _counter_state(count: int) -> str:
+        if count >= PITY_MAX:
+            return "critical"
+        if count >= PITY_WARN_THRESHOLD:
+            return "warn"
+        return "normal"
+
+    @staticmethod
+    def _set_counter_property(label: QLabel, state: str) -> None:
+        label.setProperty("state", state)
+        label.style().unpolish(label)
+        label.style().polish(label)
+        label.update()
+
+    def _set_counter_state(self, label: QLabel, count: int) -> None:
+        self._set_counter_property(label, self._counter_state(count))
+
     def _update_random_counter_color(self) -> None:
         """随机池计数器颜色 + 闪烁控制。"""
         try:
             count = int(self.random_count.text())
         except ValueError:
             count = 0
-        color = self._pity_color(count)
         if count >= PITY_MAX:
             if not self._flash_timer.isActive():
                 self._flash_timer.start(500)
         else:
             self._flash_timer.stop()
-            self.random_count.setStyleSheet(
-                f"font-size: 64px; font-weight: 700; color: {color}; border: none;" if color
-                else "font-size: 64px; font-weight: 700; color: #ecf0f1; border: none;"
-            )
+            self._set_counter_state(self.random_count, count)
 
     def _toggle_flash(self) -> None:
         """闪烁定时器回调：交替显示红色/默认色。"""
@@ -835,11 +863,9 @@ class QtMainWindow(QMainWindow):
             self._flash_timer.stop()
             return
         if self._flash_on:
-            self.random_count.setStyleSheet(
-                f"font-size: 64px; font-weight: 700; color: {COLOR_CRITICAL}; border: none;"
-            )
+            self._set_counter_property(self.random_count, "critical")
         else:
-            self.random_count.setStyleSheet("font-size: 64px; font-weight: 700; color: #ecf0f1; border: none;")
+            self._set_counter_property(self.random_count, "normal")
 
     # ---------- 增量 UI 刷新（避免全量重建延迟） ----------
 
@@ -863,16 +889,13 @@ class QtMainWindow(QMainWindow):
         data = self._selected_family_data()
         if data and data["name"] == display_name:
             self.family_detail_count.setText(str(count))
-            color = self._pity_color(count)
-            self.family_detail_count.setStyleSheet(
-                f"font-size: 64px; font-weight: 700; color: {color if color else '#ecf0f1'}; border: none;"
-            )
+            self._set_counter_state(self.family_detail_count, count)
 
     def _update_element_display(self, element: str, count: int) -> None:
         """增量更新属性池中指定属性的计数字段与颜色。"""
         item = self._element_items.get(element)
         if item:
-            item.setText(f"{element}    {count}")
+            item.setText(f"{element}    保底 {count}")
             color = self._pity_color(count)
             if color:
                 item.setForeground(QColor(color))
@@ -881,10 +904,7 @@ class QtMainWindow(QMainWindow):
         # 同步刷新右侧详情卡片
         if self._selected_element() == element:
             self.element_detail_count.setText(str(count))
-            color = self._pity_color(count)
-            self.element_detail_count.setStyleSheet(
-                f"font-size: 64px; font-weight: 700; color: {color if color else '#ecf0f1'}; border: none;"
-            )
+            self._set_counter_state(self.element_detail_count, count)
 
     def _load_family_tree(self, slot: SaveSlot) -> None:
         # 记住哪些赛季节点是展开的 + 当前选中的精灵名称
@@ -907,6 +927,7 @@ class QtMainWindow(QMainWindow):
         for season in load_seasons():
             season_id = str(season.get("season", ""))
             top = QTreeWidgetItem([season.get("label", season_id), "", ""])
+            top.setSizeHint(0, QSize(0, 38))
             top.setData(0, Qt.ItemDataRole.UserRole, {"is_season": True})
             self.family_tree.addTopLevelItem(top)
             for spirit in season.get("spirits", []):
@@ -918,6 +939,8 @@ class QtMainWindow(QMainWindow):
                     "/".join(elements),
                     str(count),
                 ])
+                for column in range(3):
+                    item.setSizeHint(column, QSize(0, 54))
                 item.setIcon(0, spirit_icon(spirit["name"], season_id))
                 if elements:
                     item.setIcon(1, element_icon(elements[0]))
@@ -955,7 +978,8 @@ class QtMainWindow(QMainWindow):
         self._element_items.clear()
         for element in ELEMENTS:
             count = slot.element_pool.get(element, 0)
-            item = QListWidgetItem(element_icon(element), f"{element}    {count}")
+            item = QListWidgetItem(element_icon(element), f"{element}    保底 {count}")
+            item.setSizeHint(QSize(0, 48))
             color = self._pity_color(count)
             if color:
                 item.setForeground(QColor(color))
@@ -972,6 +996,7 @@ class QtMainWindow(QMainWindow):
             record = records[index]
             row = self.shiny_table.rowCount()
             self.shiny_table.insertRow(row)
+            self.shiny_table.setRowHeight(row, 44)
             self.shiny_table.setVerticalHeaderItem(row, QTableWidgetItem(str(index)))
             element = record.element or self._element_for_record(record)
             values = [

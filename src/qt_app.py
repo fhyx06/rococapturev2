@@ -10,6 +10,7 @@ from PySide6.QtWidgets import QApplication
 from src.models.constants import SAVES_DIR
 from src.services.save_service import SaveService
 from src.qt_ui.main_window import QtMainWindow
+from src.qt_ui.theme import APP_STYLESHEET
 
 
 def main() -> None:
@@ -18,6 +19,7 @@ def main() -> None:
     )
     app = QApplication(sys.argv)
     app.setApplicationName("RocoCaptureV2 Qt")
+    app.setStyleSheet(APP_STYLESHEET)
 
     saves_dir = os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])), SAVES_DIR)
     save_service = SaveService(saves_dir)
