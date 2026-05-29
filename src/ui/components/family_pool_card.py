@@ -3,7 +3,7 @@ import customtkinter as ctk
 
 from src.ui.components.counter_display import CounterDisplay
 from src.utils.beep import beep
-from src.assets.icon_loader import load_spirit_icon, load_seasons
+from src.assets.icon_loader import load_element_icon, load_spirit_icon, load_seasons
 
 
 class FamilyPoolCard(ctk.CTkFrame):
@@ -112,9 +112,15 @@ class FamilyPoolCard(ctk.CTkFrame):
 
         # 构建精灵行
         for spirit in spirits:
-            self._create_spirit_row(body_frame, spirit["no"], spirit["name"], season_id)
+            self._create_spirit_row(
+                body_frame,
+                spirit["no"],
+                spirit["name"],
+                season_id,
+                spirit.get("elements", []),
+            )
 
-    def _create_spirit_row(self, parent: ctk.CTkFrame, no: int, name: str, season: str):
+    def _create_spirit_row(self, parent: ctk.CTkFrame, no: int, name: str, season: str, elements: list[str]):
         """创建一行精灵条目（图标 + 编号 + 名称 + 计数器 + 进度条）"""
         display_name = f"No.{no:03d} {name}"
         icon = load_spirit_icon(name, size=36, season=season)
@@ -142,6 +148,17 @@ class FamilyPoolCard(ctk.CTkFrame):
         )
         no_label.pack(side="left", padx=(0, 4))
 
+        # 属性图标
+        element_labels = []
+        for element in elements:
+            element_icon = load_element_icon(element, size=18)
+            if not element_icon:
+                continue
+            self._icon_refs.append(element_icon)
+            element_label = ctk.CTkLabel(row, image=element_icon, text="", width=20)
+            element_label.pack(side="left", padx=(0, 2), pady=3)
+            element_labels.append(element_label)
+
         # 精灵名
         name_label = ctk.CTkLabel(
             row, text=name,
@@ -167,7 +184,7 @@ class FamilyPoolCard(ctk.CTkFrame):
         def on_click(event, r=row, n=display_name):
             self._select(n, r)
 
-        for widget in (row, img_label, no_label, name_label, counter):
+        for widget in (row, img_label, no_label, *element_labels, name_label, counter):
             widget.bind("<Button-1>", on_click)
 
     # ──────────────────── 手风琴折叠 ────────────────────

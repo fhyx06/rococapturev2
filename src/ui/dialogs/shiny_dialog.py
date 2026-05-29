@@ -1,7 +1,7 @@
 """异色记录弹窗"""
 import customtkinter as ctk
 
-from src.assets.icon_loader import get_latest_season, load_seasons
+from src.assets.icon_loader import get_latest_season, load_element_icon, load_seasons
 from src.models.constants import ELEMENTS, POOL_ELEMENT, POOL_FAMILY, POOL_RANDOM, POOL_UNKNOWN
 
 
@@ -48,6 +48,7 @@ class ShinySpiritDialog(ctk.CTkToplevel):
         self._element = element
         self._seasons = load_seasons()
         self._season_by_id = {str(s.get("season", "")): s for s in self._seasons}
+        self._icon_refs: list = []
 
         self.grab_set()
         self.transient(parent)
@@ -67,7 +68,14 @@ class ShinySpiritDialog(ctk.CTkToplevel):
 
         ctk.CTkLabel(frame, text=f"当前保底数：{pity_count}", anchor="w").pack(fill="x", pady=3)
         if element:
-            ctk.CTkLabel(frame, text=f"属性：{element}", anchor="w").pack(fill="x", pady=3)
+            element_row = ctk.CTkFrame(frame, fg_color="transparent")
+            element_row.pack(fill="x", pady=3)
+            ctk.CTkLabel(element_row, text="属性：", anchor="w").pack(side="left")
+            icon = load_element_icon(element, size=20)
+            if icon:
+                self._icon_refs.append(icon)
+                ctk.CTkLabel(element_row, image=icon, text="", width=24).pack(side="left")
+            ctk.CTkLabel(element_row, text=element, anchor="w").pack(side="left")
 
         if fixed_spirit:
             season_text = fixed_season or "未知赛季"
@@ -167,6 +175,7 @@ class ManualShinyDialog(ctk.CTkToplevel):
         self._element_pool = element_pool
         self._seasons = load_seasons()
         self._season_by_id = {str(s.get("season", "")): s for s in self._seasons}
+        self._element_icon_ref = None
 
         self.grab_set()
         self.transient(parent)
@@ -211,11 +220,15 @@ class ManualShinyDialog(ctk.CTkToplevel):
         self._spirit_menu.pack(fill="x")
 
         self._element_label = ctk.CTkLabel(frame, text="属性：", anchor="w")
+        self._element_frame = ctk.CTkFrame(frame, fg_color="transparent")
+        self._element_icon_label = ctk.CTkLabel(self._element_frame, text="", width=28)
+        self._element_icon_label.pack(side="left")
         self._element_menu = ctk.CTkOptionMenu(
-            frame,
+            self._element_frame,
             values=ELEMENTS,
             command=lambda _: self._on_element_change(),
         )
+        self._element_menu.pack(side="left", fill="x", expand=True)
         self._element_menu.set(ELEMENTS[0])
 
         self._pity_label = ctk.CTkLabel(frame, text="保底数：", anchor="w")
@@ -250,6 +263,7 @@ class ManualShinyDialog(ctk.CTkToplevel):
         self._refresh_pity_default()
 
     def _on_element_change(self):
+        self._update_element_icon()
         self._refresh_spirit_values(self._season_menu.get())
         self._refresh_pity_default()
 
@@ -272,10 +286,11 @@ class ManualShinyDialog(ctk.CTkToplevel):
         pool_type = self._pool_value_map.get(self._pool_menu.get(), POOL_RANDOM)
         if pool_type == POOL_ELEMENT:
             self._element_label.pack(fill="x", pady=(8, 2), before=self._pity_label)
-            self._element_menu.pack(fill="x", before=self._pity_label)
+            self._element_frame.pack(fill="x", before=self._pity_label)
+            self._update_element_icon()
         else:
             self._element_label.pack_forget()
-            self._element_menu.pack_forget()
+            self._element_frame.pack_forget()
 
         if pool_type == POOL_UNKNOWN:
             self._reset_var.set(0)
@@ -285,6 +300,14 @@ class ManualShinyDialog(ctk.CTkToplevel):
             self._reset_var.set(1)
         self._refresh_spirit_values(self._season_menu.get())
         self._refresh_pity_default()
+
+    def _update_element_icon(self):
+        icon = load_element_icon(self._element_menu.get(), size=22)
+        self._element_icon_ref = icon
+        if icon:
+            self._element_icon_label.configure(image=icon, text="")
+        else:
+            self._element_icon_label.configure(image=None, text="")
 
     def _refresh_pity_default(self):
         pool_type = self._pool_value_map.get(self._pool_menu.get(), POOL_RANDOM)

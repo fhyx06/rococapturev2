@@ -1,6 +1,7 @@
 """异色明细页面"""
 import customtkinter as ctk
 
+from src.assets.icon_loader import load_element_icon, load_seasons, load_spirit_icon
 from src.models.constants import POOL_ELEMENT, POOL_FAMILY, POOL_RANDOM, POOL_UNKNOWN
 from src.models.save_slot import ShinyRecord
 
@@ -19,8 +20,8 @@ class ShinyDetailPanel(ctk.CTkFrame):
         ("时间", 84),
         ("池", 36),
         ("赛季", 38),
-        ("精灵", 124),
-        ("属性", 36),
+        ("精灵", 132),
+        ("属性", 48),
         ("保底", 38),
         ("", 42),
     )
@@ -30,6 +31,8 @@ class ShinyDetailPanel(ctk.CTkFrame):
         self._on_add = on_add
         self._on_delete = on_delete
         self._records: list[ShinyRecord] = []
+        self._icon_refs: list = []
+        self._spirit_by_key = self._build_spirit_map()
 
         header = ctk.CTkFrame(self, fg_color="transparent")
         header.pack(fill="x", padx=12, pady=(12, 6))
@@ -82,6 +85,7 @@ class ShinyDetailPanel(ctk.CTkFrame):
     def _refresh_display(self):
         for child in self._list_frame.winfo_children():
             child.destroy()
+        self._icon_refs.clear()
 
         filter_map = {
             "全部": None,
@@ -111,16 +115,19 @@ class ShinyDetailPanel(ctk.CTkFrame):
             row = ctk.CTkFrame(self._list_frame, fg_color="transparent")
             row.pack(fill="x", pady=3)
 
-            values = (
-                (self._short_time(record.timestamp), 84),
-                (self._pool_labels.get(record.pool_type, record.pool_type), 36),
-                (record.season or "-", 38),
-                (self._short_text(record.spirit_name or "未知精灵", 13), 124),
-                (record.element or "-", 36),
-                (str(record.pity_count), 38),
+            ctk.CTkLabel(row, text=self._short_time(record.timestamp), width=84, anchor="w").pack(
+                side="left", padx=2, pady=4
             )
-            for text, width in values:
-                ctk.CTkLabel(row, text=text, width=width, anchor="w").pack(side="left", padx=2, pady=4)
+            ctk.CTkLabel(
+                row,
+                text=self._pool_labels.get(record.pool_type, record.pool_type),
+                width=36,
+                anchor="w",
+            ).pack(side="left", padx=2, pady=4)
+            ctk.CTkLabel(row, text=record.season or "-", width=38, anchor="w").pack(side="left", padx=2, pady=4)
+            self._create_spirit_cell(row, record)
+            self._create_element_cell(row, self._record_element(record))
+            ctk.CTkLabel(row, text=str(record.pity_count), width=38, anchor="w").pack(side="left", padx=2, pady=4)
 
             ctk.CTkButton(
                 row,
@@ -130,6 +137,66 @@ class ShinyDetailPanel(ctk.CTkFrame):
                 hover_color="#7f8c8d",
                 command=lambda i=index: self._handle_delete(i),
             ).pack(side="left", padx=2, pady=4)
+
+    def _create_spirit_cell(self, row: ctk.CTkFrame, record: ShinyRecord):
+        cell = ctk.CTkFrame(row, fg_color="transparent", width=132, height=28)
+        cell.pack(side="left", padx=2, pady=4)
+        cell.pack_propagate(False)
+
+        icon = load_spirit_icon(record.spirit_name, size=24, season=record.season or None)
+        if icon:
+            self._icon_refs.append(icon)
+            ctk.CTkLabel(cell, image=icon, text="", width=28).pack(side="left")
+        else:
+            ctk.CTkLabel(cell, text="?", width=28, font=ctk.CTkFont(size=14)).pack(side="left")
+
+        ctk.CTkLabel(
+            cell,
+            text=self._short_text(record.spirit_name or "未知精灵", 10),
+            width=98,
+            anchor="w",
+        ).pack(side="left")
+
+    def _create_element_cell(self, row: ctk.CTkFrame, element: str):
+        cell = ctk.CTkFrame(row, fg_color="transparent", width=48, height=28)
+        cell.pack(side="left", padx=2, pady=4)
+        cell.pack_propagate(False)
+
+        icon = load_element_icon(element, size=18) if element else None
+        if icon:
+            self._icon_refs.append(icon)
+            ctk.CTkLabel(cell, image=icon, text="", width=22).pack(side="left")
+        else:
+            ctk.CTkLabel(cell, text="", width=22).pack(side="left")
+        ctk.CTkLabel(cell, text=element or "-", width=22, anchor="w").pack(side="left")
+
+    @staticmethod
+    def _build_spirit_map() -> dict[tuple[str, str], dict]:
+        result: dict[tuple[str, str], dict] = {}
+        for season_data in load_seasons():
+            season = str(season_data.get("season", ""))
+            for spirit in season_data.get("spirits", []):
+                display_name = f"No.{int(spirit['no']):03d} {spirit['name']}"
+                result[(season, display_name)] = spirit
+        return result
+
+    def _record_element(self, record: ShinyRecord) -> str:
+        if record.element:
+            return record.element
+        spirit = self._spirit_by_key.get((record.season, record.spirit_name))
+        if spirit is None:
+            spirit = next(
+                (
+                    item
+                    for (season, name), item in self._spirit_by_key.items()
+                    if name == record.spirit_name
+                ),
+                None,
+            )
+        elements = spirit.get("elements", []) if spirit else []
+        if isinstance(elements, list) and elements:
+            return str(elements[0])
+        return ""
 
     @staticmethod
     def _short_time(timestamp: str) -> str:
