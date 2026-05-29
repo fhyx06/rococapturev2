@@ -773,12 +773,13 @@ class QtMainWindow(QMainWindow):
         return mapping.get(pool_type, "未知")
 
     def _after_operation(self, logs: list[ActivityLog]) -> None:
-        """仅保存存档并追加日志，不重建 UI（由各 handler 自行增量刷新）。"""
+        """仅保存存档并刷新日志面板（日志重建极快，不拖性能）。"""
         if not logs:
             return
         self._save_svc.save_current()
-        for log in logs:
-            self.log_text.append(log.format_display())
+        slot = self._save_svc.current
+        if slot:
+            self._load_logs(slot.logs)
 
     def _random_increase(self) -> None:
         slot = self._save_svc.current
