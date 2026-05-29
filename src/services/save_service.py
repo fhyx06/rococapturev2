@@ -114,6 +114,39 @@ class SaveService:
             self._current.name = new_name
             self._current_path = new_path
 
+    # ── 导入 / 导出 ──
+
+    def import_save(self, file_path: str | Path) -> SaveSlot:
+        """从 JSON 文件导入存档。"""
+        file_path = Path(file_path)
+        if not file_path.exists():
+            raise FileNotFoundError(f"文件 '{file_path}' 不存在")
+        data = self._read_json(file_path)
+        slot = SaveSlot.from_dict(data)
+        # 补充新赛季精灵
+        for season_data in load_seasons():
+            for spirit in season_data.get("spirits", []):
+                display_name = f"No.{spirit['no']:03d} {spirit['name']}"
+                if display_name not in slot.family_pool:
+                    slot.family_pool[display_name] = 0
+        name = slot.name.strip()
+        if not name:
+            name = file_path.stem
+            slot.name = name
+        save_path = self._save_path(name)
+        if save_path.exists():
+            raise FileExistsError(f"存档 '{name}' 已存在")
+        self._write_json(save_path, slot.to_dict())
+        self._current = slot
+        self._current_path = save_path
+        return slot
+
+    def export_save(self, file_path: str | Path) -> None:
+        """导出当前存档到指定 JSON 文件。"""
+        if self._current is None:
+            raise RuntimeError("没有已加载的存档可导出")
+        self._write_json(Path(file_path), self._current.to_dict())
+
     # ── 属性 ──
 
     @property
