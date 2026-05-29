@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
     QDialog,
     QFileDialog,
     QFormLayout,
+    QGridLayout,
     QHBoxLayout,
     QHeaderView,
     QLabel,
@@ -32,6 +33,7 @@ from PySide6.QtWidgets import (
     QTreeWidgetItem,
     QVBoxLayout,
     QWidget,
+    QSizePolicy,
 )
 from src.utils.beep import beep
 
@@ -325,7 +327,8 @@ class QtMainWindow(QMainWindow):
         super().__init__()
         self._save_svc = save_service
         self._family_items: dict[str, list[QTreeWidgetItem]] = {}
-        self._element_items: dict[str, QListWidgetItem] = {}
+        self._element_items: dict[str, QPushButton] = {}
+        self._selected_element_name: str | None = None
 
         # 保底临界闪烁定时器
         self._flash_timer = QTimer(self)
@@ -540,8 +543,9 @@ class QtMainWindow(QMainWindow):
         self.family_tree.header().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
         self.family_tree.header().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
         self.family_tree.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
-        self.family_tree.setIconSize(QSize(44, 44))
-        self.family_tree.setIndentation(18)
+        self.family_tree.setIconSize(QSize(28, 28))
+        self.family_tree.setIndentation(16)
+        self.family_tree.setRootIsDecorated(True)
         self.family_tree.currentItemChanged.connect(self._on_family_selected)
         splitter.addWidget(self.family_tree)
 
@@ -592,16 +596,19 @@ class QtMainWindow(QMainWindow):
 
         splitter = QSplitter(Qt.Orientation.Horizontal)
 
-        self.element_list = QListWidget()
-        self.element_list.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
-        self.element_list.setIconSize(QSize(34, 34))
-        self.element_list.setSpacing(6)
-        self.element_list.currentItemChanged.connect(self._on_element_selected)
-        splitter.addWidget(self.element_list)
+        self.element_grid_panel = QWidget()
+        self.element_grid_panel.setObjectName("elementGridPanel")
+        self.element_grid = QGridLayout(self.element_grid_panel)
+        self.element_grid.setContentsMargins(0, 0, 0, 0)
+        self.element_grid.setHorizontalSpacing(10)
+        self.element_grid.setVerticalSpacing(8)
+        splitter.addWidget(self.element_grid_panel)
 
         right_widget = QWidget()
         right_layout = QVBoxLayout(right_widget)
         right_layout.setContentsMargins(12, 0, 0, 0)
+        right_widget.setMinimumWidth(260)
+        right_widget.setMaximumWidth(340)
 
         self.element_detail_title = QLabel("请选择属性")
         self.element_detail_title.setObjectName("mutedLabel")
@@ -621,7 +628,7 @@ class QtMainWindow(QMainWindow):
 
         right_layout.addStretch()
         splitter.addWidget(right_widget)
-        splitter.setStretchFactor(0, 1)
+        splitter.setStretchFactor(0, 2)
         splitter.setStretchFactor(1, 1)
 
         layout.addWidget(splitter, 1)
@@ -839,6 +846,16 @@ class QtMainWindow(QMainWindow):
     def _set_counter_state(self, label: QLabel, count: int) -> None:
         self._set_counter_property(label, self._counter_state(count))
 
+    @staticmethod
+    def _refresh_widget_style(widget: QWidget) -> None:
+        widget.style().unpolish(widget)
+        widget.style().polish(widget)
+        widget.update()
+
+    def _set_element_card_state(self, button: QPushButton, count: int) -> None:
+        button.setProperty("state", self._counter_state(count))
+        self._refresh_widget_style(button)
+
     def _update_random_counter_color(self) -> None:
         """随机池计数器颜色 + 闪烁控制。"""
         try:
@@ -893,18 +910,47 @@ class QtMainWindow(QMainWindow):
 
     def _update_element_display(self, element: str, count: int) -> None:
         """增量更新属性池中指定属性的计数字段与颜色。"""
-        item = self._element_items.get(element)
-        if item:
-            item.setText(f"{element}    保底 {count}")
-            color = self._pity_color(count)
-            if color:
-                item.setForeground(QColor(color))
-            else:
-                item.setData(Qt.ItemDataRole.ForegroundRole, None)
+        button = self._element_items.get(element)
+        if button:
+            button.setText(f"{element}\n保底 {count}")
+            self._set_element_card_state(button, count)
         # 同步刷新右侧详情卡片
         if self._selected_element() == element:
             self.element_detail_count.setText(str(count))
             self._set_counter_state(self.element_detail_count, count)
+
+    def _family_spirit_cell(self, spirit: dict, season_id: str) -> QWidget:
+        display_name = spirit_display(spirit)
+        cell = QWidget()
+        cell.setObjectName("familySpiritCell")
+        cell.setToolTip(display_name)
+        cell.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+
+        layout = QHBoxLayout(cell)
+        layout.setContentsMargins(4, 3, 8, 3)
+        layout.setSpacing(10)
+
+        icon = QLabel()
+        icon.setFixedSize(42, 42)
+        icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        icon.setPixmap(spirit_icon(str(spirit.get("name", "")), season_id).pixmap(40, 40))
+        layout.addWidget(icon)
+
+        text_col = QVBoxLayout()
+        text_col.setContentsMargins(0, 0, 0, 0)
+        text_col.setSpacing(1)
+
+        no_label = QLabel(f"No.{int(spirit['no']):03d}")
+        no_label.setObjectName("familySpiritNo")
+
+        name_label = QLabel(str(spirit.get("name", "")))
+        name_label.setObjectName("familySpiritName")
+        name_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+
+        text_col.addWidget(no_label)
+        text_col.addWidget(name_label)
+        layout.addLayout(text_col, 1)
+        return cell
 
     def _load_family_tree(self, slot: SaveSlot) -> None:
         # 记住哪些赛季节点是展开的 + 当前选中的精灵名称
@@ -929,21 +975,24 @@ class QtMainWindow(QMainWindow):
             top = QTreeWidgetItem([season.get("label", season_id), "", ""])
             top.setSizeHint(0, QSize(0, 38))
             top.setData(0, Qt.ItemDataRole.UserRole, {"is_season": True})
+            top.setFirstColumnSpanned(True)
             self.family_tree.addTopLevelItem(top)
             for spirit in season.get("spirits", []):
                 display_name = spirit_display(spirit)
                 elements = spirit.get("elements", [])
                 count = slot.family_pool.get(display_name, 0)
                 item = QTreeWidgetItem([
-                    display_name,
+                    "",
                     "/".join(elements),
                     str(count),
                 ])
                 for column in range(3):
-                    item.setSizeHint(column, QSize(0, 54))
-                item.setIcon(0, spirit_icon(spirit["name"], season_id))
+                    item.setSizeHint(column, QSize(0, 58))
                 if elements:
                     item.setIcon(1, element_icon(elements[0]))
+                item.setTextAlignment(1, Qt.AlignmentFlag.AlignCenter)
+                item.setTextAlignment(2, Qt.AlignmentFlag.AlignCenter)
+                item.setToolTip(0, display_name)
                 color = self._pity_color(count)
                 if color:
                     item.setForeground(2, QColor(color))
@@ -953,6 +1002,7 @@ class QtMainWindow(QMainWindow):
                     "season": season_id,
                 })
                 top.addChild(item)
+                self.family_tree.setItemWidget(item, 0, self._family_spirit_cell(spirit, season_id))
                 self._family_items.setdefault(display_name, []).append(item)
             # 恢复展开状态：原来展开的继续保持展开
             top.setExpanded(season.get("label", season_id) in expanded_seasons)
@@ -969,26 +1019,46 @@ class QtMainWindow(QMainWindow):
 
     def _load_element_list(self, slot: SaveSlot) -> None:
         # 记住当前选中的属性
-        selected_element: str | None = None
-        item = self.element_list.currentItem()
-        if item:
-            selected_element = item.data(Qt.ItemDataRole.UserRole)
+        selected_element = self._selected_element()
 
-        self.element_list.clear()
+        while self.element_grid.count():
+            layout_item = self.element_grid.takeAt(0)
+            widget = layout_item.widget()
+            if widget:
+                widget.deleteLater()
         self._element_items.clear()
-        for element in ELEMENTS:
+        self._selected_element_name = None
+        for index, element in enumerate(ELEMENTS):
             count = slot.element_pool.get(element, 0)
-            item = QListWidgetItem(element_icon(element), f"{element}    保底 {count}")
-            item.setSizeHint(QSize(0, 48))
-            color = self._pity_color(count)
-            if color:
-                item.setForeground(QColor(color))
-            item.setData(Qt.ItemDataRole.UserRole, element)
-            self.element_list.addItem(item)
-            self._element_items[element] = item
-            # 恢复选中状态
-            if element == selected_element:
-                self.element_list.setCurrentItem(item)
+            button = QPushButton(f"{element}\n保底 {count}")
+            button.setObjectName("elementCard")
+            button.setProperty("role", "elementCard")
+            button.setCheckable(True)
+            button.setCursor(Qt.CursorShape.PointingHandCursor)
+            button.setIcon(element_icon(element))
+            button.setIconSize(QSize(30, 30))
+            button.setMinimumHeight(58)
+            button.clicked.connect(lambda _checked=False, name=element: self._select_element(name))
+            self._set_element_card_state(button, count)
+            row, column = divmod(index, 2)
+            self.element_grid.addWidget(button, row, column)
+            self._element_items[element] = button
+
+        for column in range(2):
+            self.element_grid.setColumnStretch(column, 1)
+
+        if selected_element in self._element_items:
+            self._select_element(selected_element)
+        else:
+            self.element_detail_title.setText("请选择属性")
+            self.element_detail_count.setText("0")
+            self._set_counter_state(self.element_detail_count, 0)
+
+    def _select_element(self, element: str) -> None:
+        self._selected_element_name = element
+        for name, button in self._element_items.items():
+            button.setChecked(name == element)
+        self._on_element_selected()
 
     def _load_shiny_records(self, records: list[ShinyRecord]) -> None:
         self.shiny_table.setRowCount(0)
@@ -1036,10 +1106,7 @@ class QtMainWindow(QMainWindow):
 
     def _selected_element(self) -> str | None:
         """获取属性列表中当前选中的属性名称。"""
-        item = self.element_list.currentItem()
-        if item:
-            return item.data(Qt.ItemDataRole.UserRole)
-        return None
+        return self._selected_element_name
 
     def _after_operation(self, logs: list[ActivityLog]) -> None:
         """仅保存存档并刷新日志面板（日志重建极快，不拖性能）。"""

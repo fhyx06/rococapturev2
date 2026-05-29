@@ -220,6 +220,59 @@ QListWidget {
     font-size: 14px;
 }
 
+QWidget#familySpiritCell {
+    background: transparent;
+}
+
+QLabel#familySpiritNo {
+    color: #8e98a8;
+    font-size: 11px;
+    border: none;
+}
+
+QLabel#familySpiritName {
+    color: #eef3f8;
+    font-size: 14px;
+    font-weight: 700;
+    border: none;
+}
+
+QWidget#elementGridPanel {
+    background: transparent;
+}
+
+QPushButton[role="elementCard"] {
+    background: #20242b;
+    border: 1px solid #303746;
+    border-radius: 10px;
+    color: #dce2ea;
+    padding: 8px 12px;
+    text-align: left;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+QPushButton[role="elementCard"]:hover {
+    background: #242a34;
+    border-color: #48566a;
+}
+
+QPushButton[role="elementCard"]:checked {
+    background: #28364c;
+    border-color: #5d88cf;
+    color: #ffffff;
+}
+
+QPushButton[role="elementCard"][state="warn"] {
+    color: #f3b34b;
+    border-color: #9a6c2e;
+}
+
+QPushButton[role="elementCard"][state="critical"] {
+    color: #ff8e8e;
+    border-color: #a84b4b;
+}
+
 QTreeWidget::item,
 QListWidget::item,
 QTableWidget::item {
