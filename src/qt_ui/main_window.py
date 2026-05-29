@@ -657,7 +657,8 @@ class QtMainWindow(QMainWindow):
         if color:
             item.setForeground(QColor(color))
         else:
-            item.setData(0, Qt.ItemDataRole.ForegroundRole, None)
+            # 还原默认前景色（QListWidgetItem: setData(role, value)，2 个参数）
+            item.setData(Qt.ItemDataRole.ForegroundRole, None)
 
     def _load_family_tree(self, slot: SaveSlot) -> None:
         # 记住哪些赛季节点是展开的 + 当前选中的精灵名称
