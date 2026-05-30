@@ -27,6 +27,5 @@ def main() -> None:
         save_service.create_save("主账号")
 
     window = QtMainWindow(save_service)
-    window.resize(1280, 780)
     window.show()
     sys.exit(app.exec())

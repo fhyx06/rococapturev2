@@ -458,9 +458,9 @@ class QtMainWindow(QMainWindow):
         # 连接导航信号并设默认页（QStackedWidget 已就绪）
         self.sidebar.currentRowChanged.connect(self._on_nav_changed)
         self.sidebar.setCurrentRow(0)
-
+        # 窗口大小
         self.setCentralWidget(root)
-        self.resize(1280, 780)
+        self.resize(1200, 780)
         self.setMinimumSize(1040, 620)
 
     def _card_counter(self, label: str, widget_name: str = "") -> tuple[QWidget, QLabel]:
