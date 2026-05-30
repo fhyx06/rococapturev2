@@ -62,6 +62,8 @@ RocoCaptureV2/
 ├── pyproject.toml                     # 项目元数据与依赖声明
 ├── requirements.txt                   # 依赖声明
 ├── RocoCaptureV2.spec                 # PyInstaller 打包配置
+├── scripts/
+│   └── build_release.ps1              # Windows portable 发布包构建脚本
 ├── saves/                             # 存档目录（运行时自动生成）
 │   └── <存档名>.json
 └── src/
@@ -199,6 +201,32 @@ RocoCaptureV2/
 当前版本号统一维护在 `src/__about__.py` 中，程序标题、关于页、Qt 应用版本与打包配置都会读取这里的 `APP_VERSION`。
 
 `pyproject.toml` 使用动态版本配置读取同一份版本号；发布版本时使用 Git tag 标记对应提交，例如 `v0.3.0`。
+
+---
+
+## 打包发布
+
+项目使用 PyInstaller 的 onedir 模式构建 Windows portable 发布包。发布包不是源码压缩包，而是包含 exe 与运行依赖的可执行目录。
+
+安装打包依赖：
+
+```powershell
+.venv\Scripts\pip install -e .[build]
+```
+
+构建发布包：
+
+```powershell
+.\scripts\build_release.ps1 -Clean
+```
+
+输出文件位于：
+
+```text
+release/RocoCaptureV2-v0.3.0-win-x64-portable.zip
+```
+
+用户解压后运行目录内的 `RocoCaptureV2-v0.3.0.exe`，不要单独移动 exe；程序会在 exe 同级自动创建 `saves` 目录。
 
 ---
 
