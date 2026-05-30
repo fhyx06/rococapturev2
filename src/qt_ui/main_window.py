@@ -43,6 +43,7 @@ from src.__about__ import (
     APP_VERSION,
     GITHUB_LATEST_RELEASE_API_URL,
     GITHUB_RELEASES_URL,
+    UPDATE_MANIFEST_URL,
 )
 from src.utils.beep import beep
 
@@ -371,6 +372,9 @@ class QtMainWindow(QMainWindow):
         self._selected_element_name: str | None = None
         self._network_manager = QNetworkAccessManager(self)
         self._update_reply: QNetworkReply | None = None
+        self._update_sources: list[dict[str, str]] = []
+        self._update_source_index = 0
+        self._update_errors: list[str] = []
 
         # 保底临界闪烁定时器
         self._flash_timer = QTimer(self)
@@ -737,12 +741,12 @@ class QtMainWindow(QMainWindow):
         layout.addWidget(header)
 
         info = QLabel(
-            f"{APP_DISPLAY_NAME} v{APP_VERSION}\n\n"
+            f"{APP_DISPLAY_NAME}\n v{APP_VERSION}\n\n"
             "洛克王国异色保底追踪工具\n\n"
             "保底规则：\n"
             "  · 满保底 80 抽（真有人吃满吗？）\n"
             "  · 预警阈值 70 抽\n\n"
-            "PySide6 / Qt 重构版"
+            "PySide6 / Qt 重构版\n"
         )
         info.setObjectName("mutedLabel")
         info.setWordWrap(True)
@@ -752,7 +756,7 @@ class QtMainWindow(QMainWindow):
         self.update_check_btn = QPushButton("检查更新")
         self.update_check_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.update_check_btn.clicked.connect(self._check_for_updates)
-        self.update_status = QLabel("通过 GitHub Releases 检查最新版本")
+        self.update_status = QLabel("优先通过国内镜像源检查最新版本")
         self.update_status.setObjectName("mutedLabel")
         self.update_status.setWordWrap(True)
         update_row.addWidget(self.update_check_btn)
@@ -769,10 +773,27 @@ class QtMainWindow(QMainWindow):
 
         self.update_check_btn.setEnabled(False)
         self.update_check_btn.setText("检查中...")
-        self.update_status.setText("正在连接 GitHub Releases...")
+        self._update_sources = [
+            {"name": "国内镜像源", "kind": "manifest", "url": UPDATE_MANIFEST_URL},
+            {"name": "GitHub Releases", "kind": "github", "url": GITHUB_LATEST_RELEASE_API_URL},
+        ]
+        self._update_source_index = 0
+        self._update_errors = []
+        self._request_update_source()
 
-        request = QNetworkRequest(QUrl(GITHUB_LATEST_RELEASE_API_URL))
-        request.setRawHeader(b"Accept", b"application/vnd.github+json")
+    def _request_update_source(self) -> None:
+        if self._update_source_index >= len(self._update_sources):
+            self._finish_update_check()
+            message = "\n\n".join(self._update_errors) or "无法连接到更新源。"
+            self.update_status.setText("检查失败，请稍后重试")
+            self._show_update_error(message)
+            return
+
+        source = self._current_update_source()
+        self.update_status.setText(f"正在连接{source['name']}...")
+        request = QNetworkRequest(QUrl(source["url"]))
+        accept_header = b"application/vnd.github+json" if source["kind"] == "github" else b"application/json"
+        request.setRawHeader(b"Accept", accept_header)
         request.setRawHeader(b"User-Agent", f"{APP_NAME}/{APP_VERSION}".encode("utf-8"))
         request.setAttribute(
             QNetworkRequest.Attribute.CacheLoadControlAttribute,
@@ -789,6 +810,15 @@ class QtMainWindow(QMainWindow):
         self._update_reply = reply
         reply.finished.connect(self._on_update_reply_finished)
 
+    def _current_update_source(self) -> dict[str, str]:
+        if 0 <= self._update_source_index < len(self._update_sources):
+            return self._update_sources[self._update_source_index]
+        return {"name": "更新源", "kind": "unknown", "url": ""}
+
+    def _finish_update_check(self) -> None:
+        self.update_check_btn.setEnabled(True)
+        self.update_check_btn.setText("检查更新")
+
     def _on_update_reply_finished(self) -> None:
         reply = self._update_reply
         if reply is None:
@@ -796,56 +826,109 @@ class QtMainWindow(QMainWindow):
         self._handle_update_reply(reply)
 
     def _handle_update_reply(self, reply: QNetworkReply) -> None:
-        self.update_check_btn.setEnabled(True)
-        self.update_check_btn.setText("检查更新")
+        source = self._current_update_source()
         self._update_reply = None
 
         try:
             status_code = reply.attribute(QNetworkRequest.Attribute.HttpStatusCodeAttribute)
             payload = bytes(reply.readAll()).decode("utf-8", errors="replace")
             if reply.error() != QNetworkReply.NetworkError.NoError:
-                message = self._format_update_error(status_code, payload, reply.errorString())
-                self.update_status.setText("检查失败，请稍后重试")
-                self._show_update_error(message)
+                message = self._format_update_error(status_code, payload, reply.errorString(), source["name"])
+                self._try_next_update_source(message)
                 return
 
-            data = json.loads(payload)
-            tag_name = str(data.get("tag_name", "")).strip()
-            release_url = str(data.get("html_url") or GITHUB_RELEASES_URL)
+            try:
+                data = json.loads(payload)
+            except json.JSONDecodeError as exc:
+                self._try_next_update_source(f"{source['name']}：版本信息不是有效 JSON。{exc}")
+                return
+
+            release_info = self._parse_update_payload(data, source["kind"])
+            tag_name = release_info["tag_name"]
             if not tag_name:
-                self.update_status.setText("检查失败，未获取到版本号")
-                QMessageBox.warning(self, "检查更新失败", "GitHub Releases 返回的数据中没有版本号。")
+                self._try_next_update_source(f"{source['name']}：未获取到版本号。")
                 return
 
             if is_newer_version(tag_name, APP_VERSION):
-                self.update_status.setText(f"发现新版本 {tag_name}")
+                self._finish_update_check()
+                self.update_status.setText(f"发现新版本 {tag_name}（{source['name']}）")
                 reply_button = QMessageBox.question(
                     self,
                     "发现新版本",
-                    f"发现新版本 {tag_name}，当前版本 v{APP_VERSION}。\n是否打开下载页面？",
+                    f"发现新版本 {tag_name}，当前版本 v{APP_VERSION}。\n是否打开下载地址？",
                 )
                 if reply_button == QMessageBox.StandardButton.Yes:
-                    QDesktopServices.openUrl(QUrl(release_url))
+                    QDesktopServices.openUrl(QUrl(release_info["open_url"]))
                 return
 
-            self.update_status.setText(f"当前已是最新版本 v{APP_VERSION}")
+            self._finish_update_check()
+            self.update_status.setText(f"当前已是最新版本 v{APP_VERSION}（{source['name']}）")
             QMessageBox.information(self, "检查更新", f"当前已是最新版本：v{APP_VERSION}")
-        except (json.JSONDecodeError, TypeError) as exc:
+        except (TypeError, KeyError) as exc:
+            self._finish_update_check()
             self.update_status.setText("检查失败，版本信息解析异常")
             QMessageBox.warning(self, "检查更新失败", str(exc))
         finally:
             reply.deleteLater()
 
-    def _format_update_error(self, status_code: object, payload: str, network_message: str) -> str:
+    def _try_next_update_source(self, message: str) -> None:
+        self._update_errors.append(message)
+        self._update_source_index += 1
+        if self._update_source_index < len(self._update_sources):
+            next_source = self._current_update_source()
+            self.update_status.setText(f"{next_source['name']}重试中...")
+            self._request_update_source()
+            return
+
+        self._finish_update_check()
+        self.update_status.setText("检查失败，请稍后重试")
+        self._show_update_error("\n\n".join(self._update_errors))
+
+    @staticmethod
+    def _parse_update_payload(data: dict, source_kind: str) -> dict[str, str]:
+        if source_kind == "manifest":
+            version = str(data.get("tag_name") or data.get("version") or "").strip()
+            if version and not version.lower().startswith("v"):
+                version = f"v{version}"
+            open_url = str(
+                data.get("mirror_download_url")
+                or data.get("download_url")
+                or data.get("release_url")
+                or GITHUB_RELEASES_URL
+            )
+            return {"tag_name": version, "open_url": open_url}
+
+        assets = data.get("assets", [])
+        asset_url = ""
+        if isinstance(assets, list):
+            for asset in assets:
+                if not isinstance(asset, dict):
+                    continue
+                name = str(asset.get("name", ""))
+                if name.endswith(".zip"):
+                    asset_url = str(asset.get("browser_download_url", ""))
+                    break
+        return {
+            "tag_name": str(data.get("tag_name", "")).strip(),
+            "open_url": asset_url or str(data.get("html_url") or GITHUB_RELEASES_URL),
+        }
+
+    def _format_update_error(
+        self,
+        status_code: object,
+        payload: str,
+        network_message: str,
+        source_name: str = "更新源",
+    ) -> str:
         github_message = self._github_error_message(payload)
-        status_text = f"HTTP {status_code}" if status_code else "网络请求失败"
+        status_text = f"{source_name} HTTP {status_code}" if status_code else f"{source_name} 网络请求失败"
 
         if status_code == 403:
-            detail = github_message or "GitHub API 暂时拒绝了本次请求。"
-            return f"{status_text}：{detail}\n可能是访问频率限制、网络代理或 GitHub 临时不可用。"
+            detail = github_message or "更新源暂时拒绝了本次请求。"
+            return f"{status_text}：{detail}\n可能是访问频率限制、防盗链配置、网络代理或服务临时不可用。"
         if status_code == 404:
-            detail = github_message or "没有找到最新 Release。"
-            return f"{status_text}：{detail}\n请确认仓库已经发布公开 Release。"
+            detail = github_message or "没有找到更新信息。"
+            return f"{status_text}：{detail}\n请确认 latest.json 或公开 Release 已发布。"
         if status_code:
             detail = github_message or network_message or "GitHub 返回了异常响应。"
             return f"{status_text}：{detail}"

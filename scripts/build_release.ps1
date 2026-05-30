@@ -17,6 +17,7 @@ $AppDirName = "RocoCaptureV2-v$Version-win-x64"
 $DistAppDir = Join-Path $Root "dist\$AppDirName"
 $ReleaseDir = Join-Path $Root "release"
 $ZipPath = Join-Path $ReleaseDir "$AppDirName-portable.zip"
+$LatestJsonPath = Join-Path $ReleaseDir "latest.json"
 
 if ($Clean) {
     foreach ($Path in @("build", "dist", "release")) {
@@ -53,5 +54,19 @@ if (Test-Path $ZipPath) {
 }
 Compress-Archive -Path $DistAppDir -DestinationPath $ZipPath -Force
 
+$LatestManifest = [ordered]@{
+    version = $Version
+    tag_name = "v$Version"
+    release_url = "https://github.com/fhyx06/RocoCaptureV2/releases/tag/v$Version"
+    download_url = "https://github.com/fhyx06/RocoCaptureV2/releases/download/v$Version/$AppDirName-portable.zip"
+    mirror_download_url = "https://roco.blanktime.cn/releases/$AppDirName-portable.zip"
+    notes = "v$Version"
+}
+$LatestJson = $LatestManifest | ConvertTo-Json -Depth 4
+$Utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+[System.IO.File]::WriteAllText($LatestJsonPath, ($LatestJson + [Environment]::NewLine), $Utf8NoBom)
+
 Write-Host "Release package created:"
 Write-Host $ZipPath
+Write-Host "Update manifest created:"
+Write-Host $LatestJsonPath
