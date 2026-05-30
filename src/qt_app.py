@@ -1,4 +1,4 @@
-"""Qt 应用入口 —— 保持与 CustomTkinter 版本并行。"""
+"""Qt 应用入口。"""
 from __future__ import annotations
 
 import os
@@ -18,7 +18,7 @@ def main() -> None:
         Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
     )
     app = QApplication(sys.argv)
-    app.setApplicationName("RocoCaptureV2 Qt")
+    app.setApplicationName("RocoCaptureV2")
     app.setStyleSheet(APP_STYLESHEET)
 
     saves_dir = os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])), SAVES_DIR)
@@ -27,6 +27,6 @@ def main() -> None:
         save_service.create_save("主账号")
 
     window = QtMainWindow(save_service)
-    window.resize(1160, 780)
+    window.resize(1280, 780)
     window.show()
     sys.exit(app.exec())

@@ -37,7 +37,7 @@ from PySide6.QtWidgets import (
 )
 from src.utils.beep import beep
 
-from src.assets.icon_loader import get_latest_season, load_seasons
+from src.assets.season_loader import get_latest_season, load_seasons
 from src.models.constants import (
     COLOR_CRITICAL,
     COLOR_WARN,
@@ -175,7 +175,7 @@ class ShinyChoiceDialog(QDialog):
 
     def _accept(self) -> None:
         if self._pity_count <= 0:
-            QMessageBox.warning(self, "无法记录异色", "当前保底为 0，不能通过快捷出货记录添加异色。")
+            QMessageBox.warning(self, "无法记录异色", "当前保底为 0，怎么出货的？")
             return
         if self._fixed_spirit:
             season = self._fixed_season
@@ -203,7 +203,7 @@ class ManualShinyDialog(QDialog):
         POOL_RANDOM: "随机池",
         POOL_FAMILY: "家族池",
         POOL_ELEMENT: "属性池",
-        POOL_UNKNOWN: "我不记得了",
+        POOL_UNKNOWN: "我不知道",
     }
 
     def __init__(self, parent: QWidget, slot: SaveSlot):
@@ -339,7 +339,7 @@ class QtMainWindow(QMainWindow):
         self._flash_timer.timeout.connect(self._toggle_flash)
         self._flash_on = False
 
-        self.setWindowTitle("RocoCaptureV2 Qt 试验版")
+        self.setWindowTitle("RocoCaptureV2")
         icon_path = ICONS_DIR / "app_icon.ico"
         if icon_path.exists():
             self.setWindowIcon(QIcon(str(icon_path)))
@@ -513,7 +513,7 @@ class QtMainWindow(QMainWindow):
 
         # 精灵名称输入
         self.random_name = QLineEdit()
-        self.random_name.setPlaceholderText("精灵名称（可选，回车=增加）")
+        self.random_name.setPlaceholderText("精灵名称（可选，回车增加）")
         self.random_name.returnPressed.connect(self._random_increase)
         layout.addWidget(self.random_name)
 
@@ -702,8 +702,8 @@ class QtMainWindow(QMainWindow):
             "RocoCapture V2\n\n"
             "洛克王国异色保底追踪工具\n\n"
             "保底规则：\n"
-            "  · 满保底 80 抽（红色闪烁）\n"
-            "  · 预警阈值 70 抽（橙色提示）\n\n"
+            "  · 满保底 80 抽（真有人吃满吗？）\n"
+            "  · 预警阈值 70 抽\n\n"
             "PySide6 / Qt 重构版"
         )
         info.setObjectName("mutedLabel")

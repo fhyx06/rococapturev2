@@ -63,7 +63,7 @@ RocoCaptureV2/
 │   └── <存档名>.json
 └── src/
     ├── __init__.py
-    ├── app.py                         # 应用主控（DPI适配、主题、服务初始化）
+    ├── qt_app.py                      # Qt 应用入口（主题、服务初始化）
     ├── models/
     │   ├── __init__.py
     │   ├── constants.py               # 枚举常量（属性列表、保底阈值、颜色）
@@ -73,22 +73,14 @@ RocoCaptureV2/
     │   └── save_service.py            # 存档读写服务
     ├── assets/
     │   ├── __init__.py
-    │   ├── icon_loader.py             # 图标加载工具
+    │   ├── season_loader.py           # 赛季配置读取工具
     │   ├── icons/                     # 18 种属性图标
     │   ├── seasons/                   # 赛季 JSON 配置
     │   ├── sounds/                    # 音效文件
     │   └── spirits/                   # 异色精灵图
-    ├── ui/
-    │   ├── main_window.py             # 主窗口
-    │   ├── components/
-    │   │   ├── counter_display.py     # 计数展示组件
-    │   │   ├── random_pool_card.py    # 随机池卡片
-    │   │   ├── family_pool_card.py    # 家族池卡片
-    │   │   ├── element_pool_card.py   # 属性池卡片
-    │   │   └── log_panel.py           # 操作日志面板
-    │   └── dialogs/
-    │       ├── __init__.py
-    │       └── confirm_dialog.py      # 通用确认弹窗
+    ├── qt_ui/
+    │   ├── main_window.py             # Qt 主窗口
+    │   └── theme.py                   # Qt 全局样式
     └── utils/
         ├── __init__.py
         └── beep.py                   # 音效播放工具
@@ -113,15 +105,15 @@ RocoCaptureV2/
 
 ### 家族池
 
-1. 在输入框中填写精灵名称后点击 **「+ 添加家族」** 创建追踪条目。
-2. 点击列表中某一精灵行，使用右侧的增 / 减 / 重置 / 删除按钮操作。
-3. 顶部搜索框可实时过滤精灵名称。
+1. 展开赛季列表并选择需要追踪的精灵。
+2. 使用右侧的增 / 减 / 重置 / 出异色按钮操作当前选中精灵。
+3. 精灵属性会显示在列表中，计数彼此独立。
 
 ### 属性池
 
-1. 点击网格中的属性行将其选中（高亮显示）。
-2. 使用下方的 **「+」 / 「−」 / 「↺」** 按钮操作选中属性的计数。
-3. 复合属性精灵（如火 + 萌）需分别对两个属性各操作一次。
+1. 点击属性卡片将其选中（高亮显示）。
+2. 使用右侧的增 / 减 / 重置 / 出异色按钮操作选中属性的计数。
+3. 复合属性精灵按第一属性计算属性池保底。
 
 ### 保底预警规则
 
@@ -171,8 +163,7 @@ RocoCaptureV2/
 
 | 包 | 版本要求 | 用途 |
 |----|----------|------|
-| [customtkinter](https://github.com/TomSchimansky/CustomTkinter) | ≥ 5.2.0 | 现代暗色 UI 框架 |
-| [Pillow](https://python-pillow.org/) | ≥ 9.5.0 | 图像加载（CTkImage 底层依赖） |
+| [PySide6](https://doc.qt.io/qtforpython-6/) | 6.7.3 | Qt 桌面 UI 框架 |
 
 ---
 

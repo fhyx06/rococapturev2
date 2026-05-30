@@ -1,4 +1,4 @@
-"""PySide6/Qt 试验入口。"""
+"""PySide6 / Qt 入口。"""
 from src.qt_app import main
 
 

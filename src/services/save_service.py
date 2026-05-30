@@ -8,7 +8,7 @@ from typing import Callable
 
 from src.models.save_slot import SaveSlot
 from src.models.constants import SAVES_DIR
-from src.assets.icon_loader import load_seasons
+from src.assets.season_loader import load_seasons
 
 
 class SaveService:
