@@ -1,4 +1,10 @@
 """Qt 主题样式。"""
+from pathlib import Path
+
+
+_CHEVRON_DOWN_ICON = (
+    Path(__file__).resolve().parents[1] / "assets" / "icons" / "chevron_down.svg"
+).as_posix()
 
 APP_STYLESHEET = """
 QMainWindow,
@@ -157,6 +163,7 @@ QComboBox::drop-down {
 }
 
 QComboBox::down-arrow {
+    image: url("__CHEVRON_DOWN_ICON__");
     width: 9px;
     height: 9px;
     margin-right: 8px;
@@ -258,6 +265,17 @@ QWidget#familySpiritCell {
     background: transparent;
 }
 
+QWidget#familySeasonCell {
+    background: transparent;
+}
+
+QLabel#familySeasonLabel {
+    color: #eef3f8;
+    font-size: 14px;
+    font-weight: 700;
+    border: none;
+}
+
 QLabel#familySpiritNo {
     color: #8e98a8;
     font-size: 11px;
@@ -271,13 +289,36 @@ QLabel#familySpiritName {
     border: none;
 }
 
+QLabel#familySpiritElements {
+    color: #aeb8c7;
+    font-size: 12px;
+    border: none;
+}
+
+QLabel#familyPityCount {
+    color: #eef3f8;
+    font-size: 16px;
+    font-weight: 700;
+    border: none;
+}
+
+QLabel#familyPityCount[state="warn"] {
+    color: #f39c12;
+}
+
+QLabel#familyPityCount[state="critical"] {
+    color: #e74c3c;
+}
+
 QWidget#elementGridPanel {
-    background: transparent;
+    background: #20242b;
+    border: 1px solid #303746;
+    border-radius: 10px;
 }
 
 QPushButton[role="elementCard"] {
-    background: #20242b;
-    border: 1px solid #303746;
+    background: #252b35;
+    border: 1px solid #384151;
     border-radius: 10px;
     color: #dce2ea;
     padding: 8px 12px;
@@ -320,6 +361,27 @@ QTableWidget::item:selected {
     color: #ffffff;
 }
 
+QTreeWidget QScrollBar:horizontal {
+    height: 0;
+    background: transparent;
+}
+
+QTreeWidget QScrollBar:vertical {
+    background: transparent;
+    width: 6px;
+    margin: 6px 2px 6px 0;
+}
+
+QTreeWidget QScrollBar::handle:vertical {
+    background: #34404f;
+    border-radius: 3px;
+    min-height: 28px;
+}
+
+QTreeWidget QScrollBar::handle:vertical:hover {
+    background: #4a5a70;
+}
+
 QHeaderView::section {
     background: #252b35;
     border: 0;
@@ -344,7 +406,9 @@ QTableCornerButton::section {
 }
 
 QSplitter::handle {
-    background: #2a2f38;
+    background: #1b1e24;
+    border-left: 1px solid #252b35;
+    border-right: 1px solid #252b35;
 }
 
 QScrollBar:vertical,
@@ -394,4 +458,4 @@ QTextEdit#logPanel QScrollBar::handle:vertical {
 QTextEdit#logPanel QScrollBar::handle:vertical:hover {
     background: #46566a;
 }
-"""
+""".replace("__CHEVRON_DOWN_ICON__", _CHEVRON_DOWN_ICON)

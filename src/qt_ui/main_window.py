@@ -5,7 +5,7 @@ import re
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QMargins, QSize, QTimer
-from PySide6.QtGui import QIcon, QColor, QTextOption
+from PySide6.QtGui import QIcon, QTextOption
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QCheckBox,
@@ -330,6 +330,7 @@ class QtMainWindow(QMainWindow):
         super().__init__()
         self._save_svc = save_service
         self._family_items: dict[str, list[QTreeWidgetItem]] = {}
+        self._family_count_labels: dict[str, list[QLabel]] = {}
         self._element_items: dict[str, QPushButton] = {}
         self._selected_element_name: str | None = None
 
@@ -459,7 +460,7 @@ class QtMainWindow(QMainWindow):
         self.sidebar.setCurrentRow(0)
 
         self.setCentralWidget(root)
-        self.resize(1240, 760)
+        self.resize(1280, 780)
         self.setMinimumSize(1040, 620)
 
     def _card_counter(self, label: str, widget_name: str = "") -> tuple[QWidget, QLabel]:
@@ -549,15 +550,15 @@ class QtMainWindow(QMainWindow):
         splitter = QSplitter(Qt.Orientation.Horizontal)
 
         self.family_tree = QTreeWidget()
-        self.family_tree.setColumnCount(3)
-        self.family_tree.setHeaderLabels(["精灵", "属性", "保底"])
+        self.family_tree.setColumnCount(1)
+        self.family_tree.setHeaderLabels(["精灵"])
+        self.family_tree.setHeaderHidden(True)
         self.family_tree.header().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-        self.family_tree.header().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
-        self.family_tree.header().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
         self.family_tree.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.family_tree.setIconSize(QSize(28, 28))
         self.family_tree.setIndentation(16)
         self.family_tree.setRootIsDecorated(True)
+        self.family_tree.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.family_tree.currentItemChanged.connect(self._on_family_selected)
         splitter.addWidget(self.family_tree)
 
@@ -583,6 +584,7 @@ class QtMainWindow(QMainWindow):
 
         right_layout.addStretch()
         splitter.addWidget(right_widget)
+        splitter.setHandleWidth(12)
         splitter.setStretchFactor(0, 2)
         splitter.setStretchFactor(1, 1)
 
@@ -611,7 +613,7 @@ class QtMainWindow(QMainWindow):
         self.element_grid_panel = QWidget()
         self.element_grid_panel.setObjectName("elementGridPanel")
         self.element_grid = QGridLayout(self.element_grid_panel)
-        self.element_grid.setContentsMargins(0, 0, 0, 0)
+        self.element_grid.setContentsMargins(10, 10, 10, 10)
         self.element_grid.setHorizontalSpacing(10)
         self.element_grid.setVerticalSpacing(8)
         splitter.addWidget(self.element_grid_panel)
@@ -640,6 +642,7 @@ class QtMainWindow(QMainWindow):
 
         right_layout.addStretch()
         splitter.addWidget(right_widget)
+        splitter.setHandleWidth(12)
         splitter.setStretchFactor(0, 2)
         splitter.setStretchFactor(1, 1)
 
@@ -868,6 +871,10 @@ class QtMainWindow(QMainWindow):
         button.setProperty("state", self._counter_state(count))
         self._refresh_widget_style(button)
 
+    def _set_family_pity_state(self, label: QLabel, count: int) -> None:
+        label.setProperty("state", self._counter_state(count))
+        self._refresh_widget_style(label)
+
     def _can_record_shiny(self, count: int, target: str) -> bool:
         if count > 0:
             return True
@@ -911,15 +918,10 @@ class QtMainWindow(QMainWindow):
 
     def _update_family_display(self, display_name: str, count: int) -> None:
         """增量更新家族池中指定精灵的计数列文本与颜色。"""
-        items = self._family_items.get(display_name, [])
-        if items:
-            for item in items:
-                item.setText(2, str(count))
-                color = self._pity_color(count)
-                if color:
-                    item.setForeground(2, QColor(color))
-                else:
-                    item.setData(2, Qt.ItemDataRole.ForegroundRole, None)
+        labels = self._family_count_labels.get(display_name, [])
+        for label in labels:
+            label.setText(str(count))
+            self._set_family_pity_state(label, count)
         # 同步刷新右侧详情卡片
         data = self._selected_family_data()
         if data and data["name"] == display_name:
@@ -937,7 +939,28 @@ class QtMainWindow(QMainWindow):
             self.element_detail_count.setText(str(count))
             self._set_counter_state(self.element_detail_count, count)
 
-    def _family_spirit_cell(self, spirit: dict, season_id: str) -> QWidget:
+    def _family_season_cell(self, label: str) -> QWidget:
+        cell = QWidget()
+        cell.setObjectName("familySeasonCell")
+        cell.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+
+        layout = QHBoxLayout(cell)
+        layout.setContentsMargins(4, 0, 10, 0)
+        layout.setSpacing(0)
+
+        title = QLabel(label)
+        title.setObjectName("familySeasonLabel")
+        title.setToolTip(label)
+        layout.addWidget(title, 1)
+        return cell
+
+    def _family_spirit_cell(
+        self,
+        spirit: dict,
+        season_id: str,
+        elements: list[str],
+        count: int,
+    ) -> tuple[QWidget, QLabel]:
         display_name = spirit_display(spirit)
         cell = QWidget()
         cell.setObjectName("familySpiritCell")
@@ -945,18 +968,18 @@ class QtMainWindow(QMainWindow):
         cell.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
 
         layout = QHBoxLayout(cell)
-        layout.setContentsMargins(4, 3, 8, 3)
-        layout.setSpacing(10)
+        layout.setContentsMargins(4, 3, 10, 3)
+        layout.setSpacing(8)
 
         icon = QLabel()
-        icon.setFixedSize(42, 42)
+        icon.setFixedSize(38, 38)
         icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        icon.setPixmap(spirit_icon(str(spirit.get("name", "")), season_id).pixmap(40, 40))
+        icon.setPixmap(spirit_icon(str(spirit.get("name", "")), season_id).pixmap(36, 36))
         layout.addWidget(icon)
 
         text_col = QVBoxLayout()
         text_col.setContentsMargins(0, 0, 0, 0)
-        text_col.setSpacing(1)
+        text_col.setSpacing(0)
 
         no_label = QLabel(f"No.{int(spirit['no']):03d}")
         no_label.setObjectName("familySpiritNo")
@@ -968,7 +991,34 @@ class QtMainWindow(QMainWindow):
         text_col.addWidget(no_label)
         text_col.addWidget(name_label)
         layout.addLayout(text_col, 1)
-        return cell
+
+        if elements:
+            element_row = QWidget()
+            element_layout = QHBoxLayout(element_row)
+            element_layout.setContentsMargins(0, 0, 0, 0)
+            element_layout.setSpacing(4)
+            icon_label = QLabel()
+            icon_label.setFixedSize(18, 18)
+            icon_label.setPixmap(element_icon(elements[0]).pixmap(18, 18))
+            element_layout.addWidget(icon_label)
+
+            text = QLabel("/".join(elements))
+            text.setObjectName("familySpiritElements")
+            text.setToolTip("/".join(elements))
+            element_layout.addWidget(text)
+            element_layout.addStretch()
+            element_row.setFixedWidth(96)
+            layout.addWidget(element_row)
+        else:
+            layout.addSpacing(96)
+
+        count_label = QLabel(str(count))
+        count_label.setObjectName("familyPityCount")
+        count_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        count_label.setFixedWidth(34)
+        self._set_family_pity_state(count_label, count)
+        layout.addWidget(count_label)
+        return cell, count_label
 
     def _load_family_tree(self, slot: SaveSlot) -> None:
         # 记住哪些赛季节点是展开的 + 当前选中的精灵名称
@@ -988,40 +1038,33 @@ class QtMainWindow(QMainWindow):
 
         self.family_tree.clear()
         self._family_items.clear()
+        self._family_count_labels.clear()
         for season in load_seasons():
             season_id = str(season.get("season", ""))
-            top = QTreeWidgetItem([season.get("label", season_id), "", ""])
-            top.setSizeHint(0, QSize(0, 38))
+            season_label = season.get("label", season_id)
+            top = QTreeWidgetItem([season_label])
+            top.setSizeHint(0, QSize(0, 42))
             top.setData(0, Qt.ItemDataRole.UserRole, {"is_season": True})
-            top.setFirstColumnSpanned(True)
+            top.setToolTip(0, season_label)
             self.family_tree.addTopLevelItem(top)
+            self.family_tree.setItemWidget(top, 0, self._family_season_cell(season_label))
             for spirit in season.get("spirits", []):
                 display_name = spirit_display(spirit)
                 elements = spirit.get("elements", [])
                 count = slot.family_pool.get(display_name, 0)
-                item = QTreeWidgetItem([
-                    "",
-                    "/".join(elements),
-                    str(count),
-                ])
-                for column in range(3):
-                    item.setSizeHint(column, QSize(0, 58))
-                if elements:
-                    item.setIcon(1, element_icon(elements[0]))
-                item.setTextAlignment(1, Qt.AlignmentFlag.AlignCenter)
-                item.setTextAlignment(2, Qt.AlignmentFlag.AlignCenter)
+                item = QTreeWidgetItem([""])
+                item.setSizeHint(0, QSize(0, 54))
                 item.setToolTip(0, display_name)
-                color = self._pity_color(count)
-                if color:
-                    item.setForeground(2, QColor(color))
                 item.setData(0, Qt.ItemDataRole.UserRole, {
                     "is_season": False,
                     "name": display_name,
                     "season": season_id,
                 })
                 top.addChild(item)
-                self.family_tree.setItemWidget(item, 0, self._family_spirit_cell(spirit, season_id))
+                cell, count_label = self._family_spirit_cell(spirit, season_id, elements, count)
+                self.family_tree.setItemWidget(item, 0, cell)
                 self._family_items.setdefault(display_name, []).append(item)
+                self._family_count_labels.setdefault(display_name, []).append(count_label)
             # 恢复展开状态：原来展开的继续保持展开
             top.setExpanded(season.get("label", season_id) in expanded_seasons)
         # 恢复选中精灵
