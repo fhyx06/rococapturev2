@@ -1029,7 +1029,7 @@ class QtMainWindow(QMainWindow):
             if item and item.isExpanded():
                 data = item.data(0, Qt.ItemDataRole.UserRole)
                 if isinstance(data, dict) and data.get("is_season"):
-                    expanded_seasons.add(item.text(0))
+                    expanded_seasons.add(str(data.get("season", "")))
         current = self.family_tree.currentItem()
         if current:
             data = current.data(0, Qt.ItemDataRole.UserRole)
@@ -1042,9 +1042,13 @@ class QtMainWindow(QMainWindow):
         for season in load_seasons():
             season_id = str(season.get("season", ""))
             season_label = season.get("label", season_id)
-            top = QTreeWidgetItem([season_label])
+            top = QTreeWidgetItem([""])
             top.setSizeHint(0, QSize(0, 42))
-            top.setData(0, Qt.ItemDataRole.UserRole, {"is_season": True})
+            top.setData(0, Qt.ItemDataRole.UserRole, {
+                "is_season": True,
+                "season": season_id,
+                "label": season_label,
+            })
             top.setToolTip(0, season_label)
             self.family_tree.addTopLevelItem(top)
             self.family_tree.setItemWidget(top, 0, self._family_season_cell(season_label))
@@ -1066,7 +1070,7 @@ class QtMainWindow(QMainWindow):
                 self._family_items.setdefault(display_name, []).append(item)
                 self._family_count_labels.setdefault(display_name, []).append(count_label)
             # 恢复展开状态：原来展开的继续保持展开
-            top.setExpanded(season.get("label", season_id) in expanded_seasons)
+            top.setExpanded(season_id in expanded_seasons)
         # 恢复选中精灵
         if selected_spirit and selected_spirit in self._family_items:
             # 选中第一个匹配的 item（同一精灵可能出现在多个赛季）
