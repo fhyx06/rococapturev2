@@ -773,7 +773,7 @@ class QtMainWindow(QMainWindow):
         self.update_check_btn.setEnabled(False)
         self.update_check_btn.setText("检查中...")
         self._update_sources = [
-            {"name": "国内更新源", "url": UPDATE_MANIFEST_URL},
+            {"name": "版本清单", "url": UPDATE_MANIFEST_URL},
         ]
         self._update_source_index = 0
         self._update_errors = []
@@ -782,7 +782,7 @@ class QtMainWindow(QMainWindow):
     def _request_update_source(self) -> None:
         if self._update_source_index >= len(self._update_sources):
             self._finish_update_check()
-            message = "\n\n".join(self._update_errors) or "无法连接到更新源。"
+            message = "\n\n".join(self._update_errors) or "无法连接到版本检查源。"
             self.update_status.setText("检查失败，请稍后重试")
             self._show_update_error(message)
             return
@@ -810,7 +810,7 @@ class QtMainWindow(QMainWindow):
     def _current_update_source(self) -> dict[str, str]:
         if 0 <= self._update_source_index < len(self._update_sources):
             return self._update_sources[self._update_source_index]
-        return {"name": "更新源", "kind": "unknown", "url": ""}
+        return {"name": "版本检查源", "url": ""}
 
     def _finish_update_check(self) -> None:
         self.update_check_btn.setEnabled(True)
@@ -901,24 +901,24 @@ class QtMainWindow(QMainWindow):
         status_code: object,
         payload: str,
         network_message: str,
-        source_name: str = "更新源",
+        source_name: str = "版本检查源",
     ) -> str:
-        github_message = self._github_error_message(payload)
+        json_message = self._json_error_message(payload)
         status_text = f"{source_name} HTTP {status_code}" if status_code else f"{source_name} 网络请求失败"
 
         if status_code == 403:
-            detail = github_message or "更新源暂时拒绝了本次请求。"
+            detail = json_message or "版本检查源暂时拒绝了本次请求。"
             return f"{status_text}：{detail}\n可能是访问频率限制、防盗链配置、网络代理或服务临时不可用。"
         if status_code == 404:
-            detail = github_message or "没有找到更新信息。"
-            return f"{status_text}：{detail}\n请确认 latest.json 或公开 Release 已发布。"
+            detail = json_message or "没有找到版本清单。"
+            return f"{status_text}：{detail}\n请确认 latest.json 已发布。"
         if status_code:
-            detail = github_message or network_message or "GitHub 返回了异常响应。"
+            detail = json_message or network_message or "版本检查源返回了异常响应。"
             return f"{status_text}：{detail}"
-        return network_message or "无法连接到 GitHub，请检查网络后重试。"
+        return network_message or "无法连接到版本检查源，请检查网络后重试。"
 
     @staticmethod
-    def _github_error_message(payload: str) -> str:
+    def _json_error_message(payload: str) -> str:
         if not payload.strip():
             return ""
         try:

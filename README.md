@@ -18,7 +18,7 @@
 | **异色明细** | 记录出货时间、池子、赛季、精灵、属性与保底数 |
 | **操作日志** | 记录每次操作的池子类型、目标与计数快照 |
 | **多存档管理** | 支持新建 / 切换 / 重命名 / 删除 / 导入 / 导出存档 |
-| **检查更新** | 通过 GitHub Releases 检查最新版本并跳转下载页面 |
+| **检查更新** | 通过国内版本清单检查最新版本，并跳转 GitHub Releases 下载页面 |
 | **实时持久化** | 每次操作后自动写入 JSON |
 
 ---
@@ -133,13 +133,6 @@ RocoCaptureV2/
 2. 点击 **「手动添加」** 可补录历史出货信息，赛季默认选择最新赛季。
 3. 选中记录后点击 **「删除选中」** 可删除误录记录。
 
-### 设置 / 关于
-
-1. 页面会显示当前版本号。
-2. 点击 **「检查更新」** 会访问国内更新源 `https://roco.blanktime.cn/latest.json` 获取最新版本。
-3. 若发现新版本，可跳转到 GitHub Releases 下载新的 portable 压缩包。
-4. 若国内更新源暂时不可用，可按提示打开 Releases 页面手动查看。
-
 ### 保底预警规则
 
 | 计数范围 | 颜色 | 含义 |
@@ -204,16 +197,6 @@ RocoCaptureV2/
 
 ---
 
-## 版本管理
-
-当前版本号统一维护在 `src/__about__.py` 中，程序标题、关于页、Qt 应用版本、检查更新与打包配置都会读取这里的 `APP_VERSION`。
-
-检查更新只请求 `UPDATE_MANIFEST_URL` 指向的国内更新清单；发现新版本后使用清单中的 GitHub 下载地址或 Releases 页面。
-
-`pyproject.toml` 使用动态版本配置读取同一份版本号；发布版本时使用 Git tag 标记对应提交，例如 `v0.3.1`。
-
----
-
 ## 打包发布
 
 项目使用 PyInstaller 的 onedir 模式构建 Windows portable 发布包。发布包不是源码压缩包，而是包含 exe 与运行依赖的可执行目录。
@@ -237,18 +220,14 @@ release/RocoCaptureV2-v<version>-win-x64-portable.zip
 release/latest.json
 ```
 
-用户解压后运行目录内的 `RocoCaptureV2-v<version>.exe`，不要单独移动 exe；程序会在 exe 同级自动创建 `saves` 目录。
-
-发布时将 portable 压缩包上传到 GitHub Releases，并用脚本生成的 `release/latest.json` 覆盖对象存储根目录的 `latest.json`。
-
 ---
 
 ## 更新日志
 
 ### v0.3.1
 
-- **新增** 检查更新功能，使用国内更新清单检查版本并跳转 GitHub Releases 下载
-- **新增** 发布脚本自动生成 `release/latest.json`，便于同步对象存储更新清单
+- **新增** 检查更新功能
+- **新增** 发布脚本自动生成 `release/latest.json`，便于同步对象存储版本清单
 - **优化** 更新失败提示，接口不可用时可手动打开 Releases 页面查看
 
 ### v0.3.0
