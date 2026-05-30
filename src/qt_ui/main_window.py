@@ -5,7 +5,7 @@ import re
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QMargins, QSize, QTimer
-from PySide6.QtGui import QIcon, QColor
+from PySide6.QtGui import QIcon, QColor, QTextOption
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QCheckBox,
@@ -174,6 +174,9 @@ class ShinyChoiceDialog(QDialog):
             self.spirit_combo.addItem(spirit_icon(spirit["name"], season_id), spirit_display(spirit))
 
     def _accept(self) -> None:
+        if self._pity_count <= 0:
+            QMessageBox.warning(self, "无法记录异色", "当前保底为 0，不能通过快捷出货记录添加异色。")
+            return
         if self._fixed_spirit:
             season = self._fixed_season
             spirit = self._fixed_spirit
@@ -354,7 +357,9 @@ class QtMainWindow(QMainWindow):
         main_layout.setSpacing(0)
 
         # ── 顶栏 ──
-        top_bar = QHBoxLayout()
+        top_bar_widget = QWidget()
+        top_bar_widget.setObjectName("topBar")
+        top_bar = QHBoxLayout(top_bar_widget)
         top_bar.setContentsMargins(16, 10, 16, 10)
         top_bar.setSpacing(8)
 
@@ -363,9 +368,12 @@ class QtMainWindow(QMainWindow):
         top_bar.addWidget(logo)
 
         top_bar.addStretch()
-        top_bar.addWidget(QLabel("存档:"))
+        save_label = QLabel("存档:")
+        save_label.setObjectName("topBarLabel")
+        top_bar.addWidget(save_label)
         self.save_combo = QComboBox()
-        self.save_combo.setMinimumWidth(160)
+        self.save_combo.setObjectName("saveCombo")
+        self.save_combo.setMinimumWidth(176)
         self.save_combo.currentTextChanged.connect(self._on_save_selected)
         top_bar.addWidget(self.save_combo)
 
@@ -387,7 +395,7 @@ class QtMainWindow(QMainWindow):
             btn.clicked.connect(handler)
             top_bar.addWidget(btn)
 
-        main_layout.addLayout(top_bar)
+        main_layout.addWidget(top_bar_widget)
 
         # ── 分隔线 ──
         sep = QWidget()
@@ -402,8 +410,10 @@ class QtMainWindow(QMainWindow):
         # 左侧导航
         self.sidebar = QListWidget()
         self.sidebar.setObjectName("sidebar")
-        self.sidebar.setFixedWidth(146)
+        self.sidebar.setFixedWidth(154)
         self.sidebar.setSpacing(6)
+        self.sidebar.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.sidebar.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         for icon, label in [
             ("🎲", "随机池"),
             ("👪", "家族池"),
@@ -436,8 +446,10 @@ class QtMainWindow(QMainWindow):
         self.log_text = QTextEdit()
         self.log_text.setObjectName("logPanel")
         self.log_text.setReadOnly(True)
-        self.log_text.setLineWrapMode(QTextEdit.LineWrapMode.NoWrap)
-        self.log_text.setFixedWidth(236)
+        self.log_text.setLineWrapMode(QTextEdit.LineWrapMode.WidgetWidth)
+        self.log_text.setWordWrapMode(QTextOption.WrapMode.WrapAtWordBoundaryOrAnywhere)
+        self.log_text.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.log_text.setFixedWidth(248)
         body.addWidget(self.log_text)
 
         main_layout.addLayout(body, 1)
@@ -856,6 +868,12 @@ class QtMainWindow(QMainWindow):
         button.setProperty("state", self._counter_state(count))
         self._refresh_widget_style(button)
 
+    def _can_record_shiny(self, count: int, target: str) -> bool:
+        if count > 0:
+            return True
+        QMessageBox.warning(self, "无法记录异色", f"「{target}」当前保底为 0，先增加保底后再记录异色。")
+        return False
+
     def _update_random_counter_color(self) -> None:
         """随机池计数器颜色 + 闪烁控制。"""
         try:
@@ -1087,7 +1105,7 @@ class QtMainWindow(QMainWindow):
 
     def _load_logs(self, logs: list[ActivityLog]) -> None:
         lines = [f"[{self._pool_label(log.pool_type)}] {log.format_display()}" for log in reversed(logs)]
-        self.log_text.setPlainText("\n".join(lines))
+        self.log_text.setPlainText("\n\n".join(lines))
 
     @staticmethod
     def _pool_label(pool_type: int) -> str:
@@ -1145,6 +1163,8 @@ class QtMainWindow(QMainWindow):
         slot = self._save_svc.current
         if not slot:
             return
+        if not self._can_record_shiny(slot.random_pool, "随机池"):
+            return
         beep()
         dialog = ShinyChoiceDialog(self, POOL_RANDOM, slot.random_pool)
         if dialog.exec() == QDialog.DialogCode.Accepted and dialog.result_data:
@@ -1179,11 +1199,14 @@ class QtMainWindow(QMainWindow):
         data = self._selected_family_data()
         if not slot or not data:
             return
+        count = slot.family_pool.get(data["name"], 0)
+        if not self._can_record_shiny(count, data["name"]):
+            return
         beep()
         dialog = ShinyChoiceDialog(
             self,
             POOL_FAMILY,
-            slot.family_pool.get(data["name"], 0),
+            count,
             fixed_spirit=data["name"],
             fixed_season=data["season"],
         )
@@ -1219,8 +1242,11 @@ class QtMainWindow(QMainWindow):
         element = self._selected_element()
         if not slot or not element:
             return
+        count = slot.element_pool.get(element, 0)
+        if not self._can_record_shiny(count, f"{element}属性"):
+            return
         beep()
-        dialog = ShinyChoiceDialog(self, POOL_ELEMENT, slot.element_pool.get(element, 0), element=element)
+        dialog = ShinyChoiceDialog(self, POOL_ELEMENT, count, element=element)
         if dialog.exec() == QDialog.DialogCode.Accepted and dialog.result_data:
             self._apply_shiny_record(dialog.result_data)
 

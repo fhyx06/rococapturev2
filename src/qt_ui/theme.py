@@ -48,6 +48,11 @@ QLabel#brandLabel {
     font-weight: 700;
 }
 
+QLabel#topBarLabel {
+    color: #aab4c3;
+    font-size: 13px;
+}
+
 QLabel#pageHeader {
     color: #eef3f8;
     font-size: 20px;
@@ -89,9 +94,10 @@ QTextEdit#logPanel {
     border: none;
     border-left: 1px solid #2a2f38;
     color: #8f9aaa;
-    padding: 10px;
+    padding: 12px 10px 12px 12px;
     font-family: "Cascadia Mono", "Consolas", monospace;
     font-size: 12px;
+    line-height: 140%;
 }
 
 QWidget#counterCard {
@@ -127,9 +133,33 @@ QSpinBox {
     background: #20242b;
     border: 1px solid #303746;
     border-radius: 7px;
-    padding: 7px 9px;
     color: #e8ecf2;
     selection-background-color: #365d9d;
+}
+
+QLineEdit,
+QSpinBox {
+    padding: 7px 9px;
+}
+
+QComboBox {
+    padding: 7px 30px 7px 9px;
+}
+
+QComboBox::drop-down {
+    subcontrol-origin: border;
+    subcontrol-position: top right;
+    width: 28px;
+    border-left: 1px solid #303746;
+    border-top-right-radius: 7px;
+    border-bottom-right-radius: 7px;
+    background: transparent;
+}
+
+QComboBox::down-arrow {
+    width: 9px;
+    height: 9px;
+    margin-right: 8px;
 }
 
 QComboBox QAbstractItemView {
@@ -145,6 +175,10 @@ QLineEdit:focus,
 QComboBox:focus,
 QSpinBox:focus {
     border-color: #4b7cc9;
+}
+
+QComboBox:focus::drop-down {
+    border-left-color: #4b7cc9;
 }
 
 QPushButton {
@@ -331,5 +365,33 @@ QScrollBar::add-line,
 QScrollBar::sub-line {
     width: 0;
     height: 0;
+}
+
+QListWidget#sidebar QScrollBar:vertical,
+QListWidget#sidebar QScrollBar:horizontal {
+    width: 0;
+    height: 0;
+    background: transparent;
+}
+
+QTextEdit#logPanel QScrollBar:horizontal {
+    height: 0;
+    background: transparent;
+}
+
+QTextEdit#logPanel QScrollBar:vertical {
+    background: transparent;
+    width: 6px;
+    margin: 4px 0 4px 0;
+}
+
+QTextEdit#logPanel QScrollBar::handle:vertical {
+    background: #2f3846;
+    border-radius: 3px;
+    min-height: 28px;
+}
+
+QTextEdit#logPanel QScrollBar::handle:vertical:hover {
+    background: #46566a;
 }
 """
