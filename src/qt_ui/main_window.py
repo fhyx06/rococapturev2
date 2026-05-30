@@ -35,6 +35,7 @@ from PySide6.QtWidgets import (
     QWidget,
     QSizePolicy,
 )
+from src.__about__ import APP_DISPLAY_NAME, APP_VERSION
 from src.utils.beep import beep
 
 from src.assets.season_loader import get_latest_season, load_seasons
@@ -339,7 +340,7 @@ class QtMainWindow(QMainWindow):
         self._flash_timer.timeout.connect(self._toggle_flash)
         self._flash_on = False
 
-        self.setWindowTitle("RocoCaptureV2")
+        self.setWindowTitle(f"{APP_DISPLAY_NAME} v{APP_VERSION}")
         icon_path = ICONS_DIR / "app_icon.ico"
         if icon_path.exists():
             self.setWindowIcon(QIcon(str(icon_path)))
@@ -364,7 +365,7 @@ class QtMainWindow(QMainWindow):
         top_bar.setContentsMargins(16, 10, 16, 10)
         top_bar.setSpacing(8)
 
-        logo = QLabel("RocoCapture V2")
+        logo = QLabel(f"{APP_DISPLAY_NAME}  v{APP_VERSION}")
         logo.setObjectName("brandLabel")
         top_bar.addWidget(logo)
 
@@ -417,9 +418,9 @@ class QtMainWindow(QMainWindow):
         self.sidebar.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         for icon, label in [
             ("🎲", "随机池"),
-            ("👪", "家族池"),
+            ("🐾", "家族池"),
             ("🔥", "属性池"),
-            ("📊", "异色明细"),
+            ("✨", "异色明细"),
             ("⚙️", "设置"),
         ]:
             item = QListWidgetItem(f"{icon}  {label}")
@@ -699,7 +700,7 @@ class QtMainWindow(QMainWindow):
         layout.addWidget(header)
 
         info = QLabel(
-            "RocoCapture V2\n\n"
+            f"{APP_DISPLAY_NAME} v{APP_VERSION}\n\n"
             "洛克王国异色保底追踪工具\n\n"
             "保底规则：\n"
             "  · 满保底 80 抽（真有人吃满吗？）\n"

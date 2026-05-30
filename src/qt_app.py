@@ -7,6 +7,7 @@ import sys
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication
 
+from src.__about__ import APP_NAME, APP_VERSION
 from src.models.constants import SAVES_DIR
 from src.services.save_service import SaveService
 from src.qt_ui.main_window import QtMainWindow
@@ -18,7 +19,8 @@ def main() -> None:
         Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
     )
     app = QApplication(sys.argv)
-    app.setApplicationName("RocoCaptureV2")
+    app.setApplicationName(APP_NAME)
+    app.setApplicationVersion(APP_VERSION)
     app.setStyleSheet(APP_STYLESHEET)
 
     saves_dir = os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])), SAVES_DIR)
