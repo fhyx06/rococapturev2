@@ -356,6 +356,82 @@ QPushButton[role="elementCard"][state="critical"] {
     border-color: #a84b4b;
 }
 
+QWidget#shinyColumn {
+    background: #20242b;
+    border: 1px solid #303746;
+    border-radius: 10px;
+}
+
+QLabel#shinyColumnTitle {
+    color: #eef3f8;
+    font-size: 15px;
+    font-weight: 700;
+    border: none;
+}
+
+QScrollArea#shinyScroll,
+QWidget#shinyColumnContent {
+    background: transparent;
+    border: none;
+}
+
+QWidget#shinyRecordCard {
+    background: #252b35;
+    border: 1px solid #384151;
+    border-radius: 8px;
+    min-height: 82px;
+}
+
+QWidget#shinyRecordCard:hover {
+    background: #2a313d;
+    border-color: #506079;
+}
+
+QWidget#shinyRecordCard[selected="true"] {
+    background: #28364c;
+    border-color: #6d99df;
+}
+
+QWidget#shinyRecordCard[pool="random"] {
+    border-left: 3px solid #78a9ff;
+}
+
+QWidget#shinyRecordCard[pool="family"] {
+    border-left: 3px solid #f3b34b;
+}
+
+QWidget#shinyRecordCard[pool="element"] {
+    border-left: 3px solid #52d6b1;
+}
+
+QWidget#shinyRecordCard[pool="unknown"] {
+    border-left: 3px solid #8e98a8;
+}
+
+QLabel#shinyCardIcon {
+    border: none;
+}
+
+QLabel#shinyCardTitle {
+    color: #eef3f8;
+    font-size: 14px;
+    font-weight: 700;
+    border: none;
+}
+
+QLabel#shinyCardMeta {
+    color: #aeb8c7;
+    font-size: 12px;
+    border: none;
+}
+
+QLabel#shinyEmptyLabel {
+    color: #6f7a8a;
+    border: 1px dashed #384151;
+    border-radius: 8px;
+    padding: 22px 8px;
+}
+
 QTreeWidget::item,
 QListWidget::item,
 QTableWidget::item {

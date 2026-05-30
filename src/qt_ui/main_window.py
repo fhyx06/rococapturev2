@@ -5,7 +5,7 @@ import json
 import re
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QMargins, QSize, QTimer, QUrl
+from PySide6.QtCore import Qt, QMargins, QSize, QTimer, QUrl, Signal
 from PySide6.QtGui import QDesktopServices, QIcon, QTextOption
 from PySide6.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
 from PySide6.QtWidgets import (
@@ -28,8 +28,7 @@ from PySide6.QtWidgets import (
     QSpinBox,
     QSplitter,
     QStackedWidget,
-    QTableWidget,
-    QTableWidgetItem,
+    QScrollArea,
     QTextEdit,
     QTreeWidget,
     QTreeWidgetItem,
@@ -359,6 +358,104 @@ class ManualShinyDialog(QDialog):
         self.accept()
 
 
+class ShinyRecordCard(QWidget):
+    """异色记录卡片。"""
+
+    clicked = Signal(int)
+
+    def __init__(
+        self,
+        index: int,
+        record: ShinyRecord,
+        pool_label: str,
+        element: str,
+        parent: QWidget | None = None,
+    ):
+        super().__init__(parent)
+        self._index = index
+        self.setObjectName("shinyRecordCard")
+        self.setProperty("pool", record.pool_type)
+        self.setProperty("selected", "false")
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setToolTip(record.format_display())
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(10)
+
+        icon = QLabel()
+        icon.setObjectName("shinyCardIcon")
+        icon.setFixedSize(38, 38)
+        icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        icon.setPixmap(spirit_icon(record.spirit_name, record.season).pixmap(34, 34))
+        layout.addWidget(icon)
+
+        text_col = QVBoxLayout()
+        text_col.setContentsMargins(0, 0, 0, 0)
+        text_col.setSpacing(3)
+
+        title = QLabel(self._title_text(record))
+        title.setObjectName("shinyCardTitle")
+        title.setWordWrap(True)
+        text_col.addWidget(title)
+
+        date = QLabel(f"时间 {self._short_timestamp(record.timestamp)}")
+        date.setObjectName("shinyCardMeta")
+        text_col.addWidget(date)
+
+        meta_row = QHBoxLayout()
+        meta_row.setContentsMargins(0, 0, 0, 0)
+        meta_row.setSpacing(5)
+        if record.pool_type == POOL_ELEMENT and element:
+            element_label = QLabel()
+            element_label.setFixedSize(16, 16)
+            element_label.setPixmap(element_icon(element).pixmap(16, 16))
+            meta_row.addWidget(element_label)
+            meta = QLabel(f"属性: {element}  保底: {record.pity_count}")
+        elif record.pool_type == POOL_UNKNOWN:
+            meta = QLabel(f"来源: {pool_label}  保底: {record.pity_count}")
+        else:
+            meta = QLabel(f"保底数: {record.pity_count}")
+        meta.setObjectName("shinyCardMeta")
+        meta.setWordWrap(True)
+        meta_row.addWidget(meta, 1)
+        text_col.addLayout(meta_row)
+
+        layout.addLayout(text_col, 1)
+
+    def set_selected(self, selected: bool) -> None:
+        self.setProperty("selected", "true" if selected else "false")
+        self.style().unpolish(self)
+        self.style().polish(self)
+        self.update()
+
+    def mousePressEvent(self, event) -> None:
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.clicked.emit(self._index)
+            event.accept()
+            return
+        super().mousePressEvent(event)
+
+    @staticmethod
+    def _title_text(record: ShinyRecord) -> str:
+        title = ShinyRecordCard._short_spirit_name(record.spirit_name)
+        if record.season:
+            title = f"{title} ({record.season})"
+        return f"★ {title}"
+
+    @staticmethod
+    def _short_timestamp(timestamp: str) -> str:
+        if len(timestamp) >= 16:
+            return timestamp[5:16]
+        return timestamp or "未知时间"
+
+    @staticmethod
+    def _short_spirit_name(spirit_name: str) -> str:
+        name = spirit_name or "未知精灵"
+        return re.sub(r"^No\.\d+\s+", "", name).strip() or name
+
+
 class QtMainWindow(QMainWindow):
     """Qt 试验版主窗口。"""
 
@@ -369,6 +466,9 @@ class QtMainWindow(QMainWindow):
         self._family_count_labels: dict[str, list[QLabel]] = {}
         self._element_items: dict[str, QPushButton] = {}
         self._selected_element_name: str | None = None
+        self._shiny_column_layouts: dict[str, QVBoxLayout] = {}
+        self._shiny_cards: dict[int, ShinyRecordCard] = {}
+        self._selected_shiny_index: int | None = None
         self._network_manager = QNetworkAccessManager(self)
         self._update_reply: QNetworkReply | None = None
         self._update_sources: list[dict[str, str]] = []
@@ -702,31 +802,57 @@ class QtMainWindow(QMainWindow):
         page = QWidget()
         layout = QVBoxLayout(page)
         layout.setContentsMargins(24, 20, 24, 20)
-
-        header = QLabel("异色明细")
-        header.setObjectName("pageHeader")
-        layout.addWidget(header)
+        layout.setSpacing(14)
 
         top_row = QHBoxLayout()
+        header = QLabel("异色明细")
+        header.setObjectName("pageHeader")
+        top_row.addWidget(header)
         top_row.addStretch()
         add_btn = QPushButton("手动添加")
-        delete_btn = QPushButton("删除选中")
+        self.delete_shiny_btn = QPushButton("删除选中")
+        self.delete_shiny_btn.setEnabled(False)
         add_btn.clicked.connect(self._manual_add_shiny)
-        delete_btn.clicked.connect(self._delete_selected_shiny)
+        self.delete_shiny_btn.clicked.connect(self._delete_selected_shiny)
         top_row.addWidget(add_btn)
-        top_row.addWidget(delete_btn)
+        top_row.addWidget(self.delete_shiny_btn)
         layout.addLayout(top_row)
 
-        self.shiny_table = QTableWidget(0, 6)
-        self.shiny_table.setHorizontalHeaderLabels(["时间", "池子", "赛季", "精灵", "属性", "保底"])
-        self.shiny_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
-        self.shiny_table.verticalHeader().setVisible(False)
-        self.shiny_table.verticalHeader().setDefaultSectionSize(42)
-        self.shiny_table.setAlternatingRowColors(True)
-        self.shiny_table.setIconSize(QSize(32, 32))
-        self.shiny_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
-        self.shiny_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
-        layout.addWidget(self.shiny_table, 1)
+        columns = QHBoxLayout()
+        columns.setSpacing(12)
+        self._shiny_column_layouts.clear()
+        for pool_type, title in [
+            (POOL_RANDOM, "🎰 随机池记录"),
+            (POOL_FAMILY, "👪 家族池记录"),
+            (POOL_ELEMENT, "⚡ 属性池记录"),
+        ]:
+            column = QWidget()
+            column.setObjectName("shinyColumn")
+            column.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+            column_layout = QVBoxLayout(column)
+            column_layout.setContentsMargins(12, 12, 12, 12)
+            column_layout.setSpacing(10)
+
+            title_label = QLabel(title)
+            title_label.setObjectName("shinyColumnTitle")
+            column_layout.addWidget(title_label)
+
+            scroll = QScrollArea()
+            scroll.setObjectName("shinyScroll")
+            scroll.setWidgetResizable(True)
+            scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+            content = QWidget()
+            content.setObjectName("shinyColumnContent")
+            cards_layout = QVBoxLayout(content)
+            cards_layout.setContentsMargins(0, 0, 0, 0)
+            cards_layout.setSpacing(10)
+            scroll.setWidget(content)
+            column_layout.addWidget(scroll, 1)
+
+            self._shiny_column_layouts[pool_type] = cards_layout
+            columns.addWidget(column, 1)
+
+        layout.addLayout(columns, 1)
 
         self.page_stack.addWidget(page)
 
@@ -1350,37 +1476,71 @@ class QtMainWindow(QMainWindow):
         self._on_element_selected()
 
     def _load_shiny_records(self, records: list[ShinyRecord]) -> None:
-        self.shiny_table.setRowCount(0)
+        for cards_layout in self._shiny_column_layouts.values():
+            while cards_layout.count():
+                item = cards_layout.takeAt(0)
+                widget = item.widget()
+                if widget:
+                    widget.deleteLater()
+        self._shiny_cards.clear()
+        self._selected_shiny_index = None
+        if hasattr(self, "delete_shiny_btn"):
+            self.delete_shiny_btn.setEnabled(False)
+
+        grouped: dict[str, list[tuple[int, ShinyRecord]]] = {
+            POOL_RANDOM: [],
+            POOL_FAMILY: [],
+            POOL_ELEMENT: [],
+        }
         for index in range(len(records) - 1, -1, -1):
             record = records[index]
-            row = self.shiny_table.rowCount()
-            self.shiny_table.insertRow(row)
-            self.shiny_table.setRowHeight(row, 44)
-            self.shiny_table.setVerticalHeaderItem(row, QTableWidgetItem(str(index)))
-            element = record.element or self._element_for_record(record)
-            values = [
-                record.timestamp,
-                self._pool_label(record.pool_type),
-                record.season or "-",
-                record.spirit_name or "未知精灵",
-                element or "-",
-                str(record.pity_count),
-            ]
-            for col, value in enumerate(values):
-                item = QTableWidgetItem(value)
-                if col == 3:
-                    item.setIcon(spirit_icon(record.spirit_name, record.season))
-                elif col == 4 and element:
-                    item.setIcon(element_icon(element))
-                self.shiny_table.setItem(row, col, item)
+            grouped[self._shiny_display_pool(record)].append((index, record))
+
+        for pool_type, cards_layout in self._shiny_column_layouts.items():
+            pool_records = grouped.get(pool_type, [])
+            if not pool_records:
+                empty = QLabel("暂无记录")
+                empty.setObjectName("shinyEmptyLabel")
+                empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                cards_layout.addWidget(empty)
+                cards_layout.addStretch()
+                continue
+            for index, record in pool_records:
+                element = record.element or self._element_for_record(record)
+                card = ShinyRecordCard(
+                    index=index,
+                    record=record,
+                    pool_label=self._pool_label(record.pool_type),
+                    element=element,
+                )
+                card.clicked.connect(self._select_shiny_record)
+                cards_layout.addWidget(card)
+                self._shiny_cards[index] = card
+            cards_layout.addStretch()
+
+    def _select_shiny_record(self, index: int) -> None:
+        if self._selected_shiny_index == index:
+            self._selected_shiny_index = None
+        else:
+            self._selected_shiny_index = index
+        for card_index, card in self._shiny_cards.items():
+            card.set_selected(card_index == self._selected_shiny_index)
+        if hasattr(self, "delete_shiny_btn"):
+            self.delete_shiny_btn.setEnabled(self._selected_shiny_index is not None)
+
+    @staticmethod
+    def _shiny_display_pool(record: ShinyRecord) -> str:
+        if record.pool_type in {POOL_RANDOM, POOL_FAMILY, POOL_ELEMENT}:
+            return record.pool_type
+        return POOL_RANDOM
 
     def _load_logs(self, logs: list[ActivityLog]) -> None:
         lines = [f"[{self._pool_label(log.pool_type)}] {log.format_display()}" for log in reversed(logs)]
         self.log_text.setPlainText("\n\n".join(lines))
 
     @staticmethod
-    def _pool_label(pool_type: int) -> str:
-        mapping = {POOL_RANDOM: "随机", POOL_FAMILY: "家族", POOL_ELEMENT: "属性"}
+    def _pool_label(pool_type: str) -> str:
+        mapping = {POOL_RANDOM: "随机", POOL_FAMILY: "家族", POOL_ELEMENT: "属性", POOL_UNKNOWN: "未知池"}
         return mapping.get(pool_type, "未知")
 
     def _selected_family_data(self) -> dict | None:
@@ -1532,14 +1692,9 @@ class QtMainWindow(QMainWindow):
 
     def _delete_selected_shiny(self) -> None:
         slot = self._save_svc.current
-        row = self.shiny_table.currentRow()
-        if not slot or row < 0:
+        if not slot or self._selected_shiny_index is None:
             return
-        index_item = self.shiny_table.verticalHeaderItem(row)
-        if index_item is None:
-            return
-        index = int(index_item.text())
-        if self._confirm("确定删除这条异色记录吗？") and slot.delete_shiny_record(index):
+        if self._confirm("确定删除这条异色记录吗？") and slot.delete_shiny_record(self._selected_shiny_index):
             beep()
             self._save_svc.save_current()
             self._load_slot(slot)
