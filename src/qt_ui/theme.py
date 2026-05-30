@@ -181,11 +181,19 @@ QComboBox QAbstractItemView {
 QLineEdit:focus,
 QComboBox:focus,
 QSpinBox:focus {
-    border-color: #4b7cc9;
+    border-color: #465164;
 }
 
 QComboBox:focus::drop-down {
-    border-left-color: #4b7cc9;
+    border-left-color: #465164;
+}
+
+QComboBox#saveCombo:focus {
+    border-color: #384151;
+}
+
+QComboBox#saveCombo:focus::drop-down {
+    border-left-color: #384151;
 }
 
 QPushButton {
