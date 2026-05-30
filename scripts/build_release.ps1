@@ -59,7 +59,6 @@ $LatestManifest = [ordered]@{
     tag_name = "v$Version"
     release_url = "https://github.com/fhyx06/RocoCaptureV2/releases/tag/v$Version"
     download_url = "https://github.com/fhyx06/RocoCaptureV2/releases/download/v$Version/$AppDirName-portable.zip"
-    mirror_download_url = "https://roco.blanktime.cn/releases/$AppDirName-portable.zip"
     notes = "v$Version"
 }
 $LatestJson = $LatestManifest | ConvertTo-Json -Depth 4

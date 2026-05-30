@@ -41,7 +41,6 @@ from src.__about__ import (
     APP_DISPLAY_NAME,
     APP_NAME,
     APP_VERSION,
-    GITHUB_LATEST_RELEASE_API_URL,
     GITHUB_RELEASES_URL,
     UPDATE_MANIFEST_URL,
 )
@@ -756,7 +755,7 @@ class QtMainWindow(QMainWindow):
         self.update_check_btn = QPushButton("检查更新")
         self.update_check_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.update_check_btn.clicked.connect(self._check_for_updates)
-        self.update_status = QLabel("优先通过国内镜像源检查最新版本")
+        self.update_status = QLabel("GitHub Releases")
         self.update_status.setObjectName("mutedLabel")
         self.update_status.setWordWrap(True)
         update_row.addWidget(self.update_check_btn)
@@ -774,8 +773,7 @@ class QtMainWindow(QMainWindow):
         self.update_check_btn.setEnabled(False)
         self.update_check_btn.setText("检查中...")
         self._update_sources = [
-            {"name": "国内镜像源", "kind": "manifest", "url": UPDATE_MANIFEST_URL},
-            {"name": "GitHub Releases", "kind": "github", "url": GITHUB_LATEST_RELEASE_API_URL},
+            {"name": "国内更新源", "url": UPDATE_MANIFEST_URL},
         ]
         self._update_source_index = 0
         self._update_errors = []
@@ -792,8 +790,7 @@ class QtMainWindow(QMainWindow):
         source = self._current_update_source()
         self.update_status.setText(f"正在连接{source['name']}...")
         request = QNetworkRequest(QUrl(source["url"]))
-        accept_header = b"application/vnd.github+json" if source["kind"] == "github" else b"application/json"
-        request.setRawHeader(b"Accept", accept_header)
+        request.setRawHeader(b"Accept", b"application/json")
         request.setRawHeader(b"User-Agent", f"{APP_NAME}/{APP_VERSION}".encode("utf-8"))
         request.setAttribute(
             QNetworkRequest.Attribute.CacheLoadControlAttribute,
@@ -843,7 +840,7 @@ class QtMainWindow(QMainWindow):
                 self._try_next_update_source(f"{source['name']}：版本信息不是有效 JSON。{exc}")
                 return
 
-            release_info = self._parse_update_payload(data, source["kind"])
+            release_info = self._parse_update_payload(data)
             tag_name = release_info["tag_name"]
             if not tag_name:
                 self._try_next_update_source(f"{source['name']}：未获取到版本号。")
@@ -855,7 +852,7 @@ class QtMainWindow(QMainWindow):
                 reply_button = QMessageBox.question(
                     self,
                     "发现新版本",
-                    f"发现新版本 {tag_name}，当前版本 v{APP_VERSION}。\n是否打开下载地址？",
+                    f"发现新版本 {tag_name}，当前版本 v{APP_VERSION}。\n是否打开 GitHub 下载地址？",
                 )
                 if reply_button == QMessageBox.StandardButton.Yes:
                     QDesktopServices.openUrl(QUrl(release_info["open_url"]))
@@ -885,32 +882,18 @@ class QtMainWindow(QMainWindow):
         self._show_update_error("\n\n".join(self._update_errors))
 
     @staticmethod
-    def _parse_update_payload(data: dict, source_kind: str) -> dict[str, str]:
-        if source_kind == "manifest":
-            version = str(data.get("tag_name") or data.get("version") or "").strip()
-            if version and not version.lower().startswith("v"):
-                version = f"v{version}"
-            open_url = str(
-                data.get("mirror_download_url")
-                or data.get("download_url")
-                or data.get("release_url")
-                or GITHUB_RELEASES_URL
-            )
-            return {"tag_name": version, "open_url": open_url}
-
-        assets = data.get("assets", [])
-        asset_url = ""
-        if isinstance(assets, list):
-            for asset in assets:
-                if not isinstance(asset, dict):
-                    continue
-                name = str(asset.get("name", ""))
-                if name.endswith(".zip"):
-                    asset_url = str(asset.get("browser_download_url", ""))
-                    break
+    def _parse_update_payload(data: dict) -> dict[str, str]:
+        version = str(data.get("tag_name") or data.get("version") or "").strip()
+        if version and not version.lower().startswith("v"):
+            version = f"v{version}"
+        open_url = str(
+            data.get("download_url")
+            or data.get("release_url")
+            or GITHUB_RELEASES_URL
+        )
         return {
-            "tag_name": str(data.get("tag_name", "")).strip(),
-            "open_url": asset_url or str(data.get("html_url") or GITHUB_RELEASES_URL),
+            "tag_name": version,
+            "open_url": open_url,
         }
 
     def _format_update_error(

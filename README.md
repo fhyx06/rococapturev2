@@ -136,10 +136,9 @@ RocoCaptureV2/
 ### 设置 / 关于
 
 1. 页面会显示当前版本号。
-2. 点击 **「检查更新」** 会优先访问国内镜像源 `https://roco.blanktime.cn/latest.json` 获取最新版本。
-3. 若国内镜像源不可用，会自动切换到 GitHub Releases API。
-4. 若发现新版本，可跳转到下载地址获取新的 portable 压缩包。
-5. 若更新接口暂时不可用，可按提示打开 Releases 页面手动查看。
+2. 点击 **「检查更新」** 会访问国内更新源 `https://roco.blanktime.cn/latest.json` 获取最新版本。
+3. 若发现新版本，可跳转到 GitHub Releases 下载新的 portable 压缩包。
+4. 若国内更新源暂时不可用，可按提示打开 Releases 页面手动查看。
 
 ### 保底预警规则
 
@@ -209,7 +208,7 @@ RocoCaptureV2/
 
 当前版本号统一维护在 `src/__about__.py` 中，程序标题、关于页、Qt 应用版本、检查更新与打包配置都会读取这里的 `APP_VERSION`。
 
-检查更新会先请求 `UPDATE_MANIFEST_URL` 指向的国内镜像清单，失败后再请求 GitHub Releases API。
+检查更新只请求 `UPDATE_MANIFEST_URL` 指向的国内更新清单；发现新版本后使用清单中的 GitHub 下载地址或 Releases 页面。
 
 `pyproject.toml` 使用动态版本配置读取同一份版本号；发布版本时使用 Git tag 标记对应提交，例如 `v0.3.1`。
 
@@ -240,7 +239,7 @@ release/latest.json
 
 用户解压后运行目录内的 `RocoCaptureV2-v<version>.exe`，不要单独移动 exe；程序会在 exe 同级自动创建 `saves` 目录。
 
-发布时将 portable 压缩包上传到 GitHub Releases；如需国内更新源，将压缩包上传到对象存储的 `releases/` 目录，并用脚本生成的 `release/latest.json` 覆盖对象存储根目录的 `latest.json`。
+发布时将 portable 压缩包上传到 GitHub Releases，并用脚本生成的 `release/latest.json` 覆盖对象存储根目录的 `latest.json`。
 
 ---
 
@@ -248,7 +247,7 @@ release/latest.json
 
 ### v0.3.1
 
-- **新增** 检查更新功能，支持国内镜像清单优先、GitHub Releases API 兜底
+- **新增** 检查更新功能，使用国内更新清单检查版本并跳转 GitHub Releases 下载
 - **新增** 发布脚本自动生成 `release/latest.json`，便于同步对象存储更新清单
 - **优化** 更新失败提示，接口不可用时可手动打开 Releases 页面查看
 
