@@ -1,11 +1,13 @@
 """PySide6 主窗口 —— 复现现有核心功能的试验版。"""
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QMargins, QSize, QTimer
-from PySide6.QtGui import QIcon, QTextOption
+from PySide6.QtCore import Qt, QMargins, QSize, QTimer, QUrl
+from PySide6.QtGui import QDesktopServices, QIcon, QTextOption
+from PySide6.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QCheckBox,
@@ -35,7 +37,13 @@ from PySide6.QtWidgets import (
     QWidget,
     QSizePolicy,
 )
-from src.__about__ import APP_DISPLAY_NAME, APP_VERSION
+from src.__about__ import (
+    APP_DISPLAY_NAME,
+    APP_NAME,
+    APP_VERSION,
+    GITHUB_LATEST_RELEASE_API_URL,
+    GITHUB_RELEASES_URL,
+)
 from src.utils.beep import beep
 
 from src.assets.season_loader import get_latest_season, load_seasons
@@ -90,6 +98,33 @@ def spirit_icon(spirit_name: str, season: str = "") -> QIcon:
             if path.suffix.lower() == ".png" and path.stem.endswith(lookup):
                 return QIcon(str(path))
     return QIcon()
+
+
+def version_tuple(version: str) -> tuple[int, int, int] | None:
+    normalized = version.strip().lower()
+    if normalized.startswith("v"):
+        normalized = normalized[1:]
+    normalized = re.split(r"[-+]", normalized, maxsplit=1)[0]
+    parts = normalized.split(".")
+    if not parts or len(parts) > 3:
+        return None
+
+    numbers: list[int] = []
+    for part in parts:
+        if not part.isdigit():
+            return None
+        numbers.append(int(part))
+    while len(numbers) < 3:
+        numbers.append(0)
+    return tuple(numbers)
+
+
+def is_newer_version(remote_version: str, current_version: str) -> bool:
+    remote = version_tuple(remote_version)
+    current = version_tuple(current_version)
+    if remote is None or current is None:
+        return False
+    return remote > current
 
 
 class ShinyChoiceDialog(QDialog):
@@ -334,6 +369,8 @@ class QtMainWindow(QMainWindow):
         self._family_count_labels: dict[str, list[QLabel]] = {}
         self._element_items: dict[str, QPushButton] = {}
         self._selected_element_name: str | None = None
+        self._network_manager = QNetworkAccessManager(self)
+        self._update_reply: QNetworkReply | None = None
 
         # 保底临界闪烁定时器
         self._flash_timer = QTimer(self)
@@ -710,9 +747,129 @@ class QtMainWindow(QMainWindow):
         info.setObjectName("mutedLabel")
         info.setWordWrap(True)
         layout.addWidget(info)
+
+        update_row = QHBoxLayout()
+        self.update_check_btn = QPushButton("检查更新")
+        self.update_check_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.update_check_btn.clicked.connect(self._check_for_updates)
+        self.update_status = QLabel("通过 GitHub Releases 检查最新版本")
+        self.update_status.setObjectName("mutedLabel")
+        self.update_status.setWordWrap(True)
+        update_row.addWidget(self.update_check_btn)
+        update_row.addWidget(self.update_status, 1)
+        layout.addLayout(update_row)
+
         layout.addStretch()
 
         self.page_stack.addWidget(page)
+
+    def _check_for_updates(self) -> None:
+        if self._update_reply is not None:
+            return
+
+        self.update_check_btn.setEnabled(False)
+        self.update_check_btn.setText("检查中...")
+        self.update_status.setText("正在连接 GitHub Releases...")
+
+        request = QNetworkRequest(QUrl(GITHUB_LATEST_RELEASE_API_URL))
+        request.setRawHeader(b"Accept", b"application/vnd.github+json")
+        request.setRawHeader(b"User-Agent", f"{APP_NAME}/{APP_VERSION}".encode("utf-8"))
+        request.setAttribute(
+            QNetworkRequest.Attribute.CacheLoadControlAttribute,
+            QNetworkRequest.CacheLoadControl.AlwaysNetwork,
+        )
+        request.setAttribute(
+            QNetworkRequest.Attribute.RedirectPolicyAttribute,
+            QNetworkRequest.RedirectPolicy.NoLessSafeRedirectPolicy,
+        )
+        if hasattr(request, "setTransferTimeout"):
+            request.setTransferTimeout(10000)
+
+        reply = self._network_manager.get(request)
+        self._update_reply = reply
+        reply.finished.connect(self._on_update_reply_finished)
+
+    def _on_update_reply_finished(self) -> None:
+        reply = self._update_reply
+        if reply is None:
+            return
+        self._handle_update_reply(reply)
+
+    def _handle_update_reply(self, reply: QNetworkReply) -> None:
+        self.update_check_btn.setEnabled(True)
+        self.update_check_btn.setText("检查更新")
+        self._update_reply = None
+
+        try:
+            status_code = reply.attribute(QNetworkRequest.Attribute.HttpStatusCodeAttribute)
+            payload = bytes(reply.readAll()).decode("utf-8", errors="replace")
+            if reply.error() != QNetworkReply.NetworkError.NoError:
+                message = self._format_update_error(status_code, payload, reply.errorString())
+                self.update_status.setText("检查失败，请稍后重试")
+                self._show_update_error(message)
+                return
+
+            data = json.loads(payload)
+            tag_name = str(data.get("tag_name", "")).strip()
+            release_url = str(data.get("html_url") or GITHUB_RELEASES_URL)
+            if not tag_name:
+                self.update_status.setText("检查失败，未获取到版本号")
+                QMessageBox.warning(self, "检查更新失败", "GitHub Releases 返回的数据中没有版本号。")
+                return
+
+            if is_newer_version(tag_name, APP_VERSION):
+                self.update_status.setText(f"发现新版本 {tag_name}")
+                reply_button = QMessageBox.question(
+                    self,
+                    "发现新版本",
+                    f"发现新版本 {tag_name}，当前版本 v{APP_VERSION}。\n是否打开下载页面？",
+                )
+                if reply_button == QMessageBox.StandardButton.Yes:
+                    QDesktopServices.openUrl(QUrl(release_url))
+                return
+
+            self.update_status.setText(f"当前已是最新版本 v{APP_VERSION}")
+            QMessageBox.information(self, "检查更新", f"当前已是最新版本：v{APP_VERSION}")
+        except (json.JSONDecodeError, TypeError) as exc:
+            self.update_status.setText("检查失败，版本信息解析异常")
+            QMessageBox.warning(self, "检查更新失败", str(exc))
+        finally:
+            reply.deleteLater()
+
+    def _format_update_error(self, status_code: object, payload: str, network_message: str) -> str:
+        github_message = self._github_error_message(payload)
+        status_text = f"HTTP {status_code}" if status_code else "网络请求失败"
+
+        if status_code == 403:
+            detail = github_message or "GitHub API 暂时拒绝了本次请求。"
+            return f"{status_text}：{detail}\n可能是访问频率限制、网络代理或 GitHub 临时不可用。"
+        if status_code == 404:
+            detail = github_message or "没有找到最新 Release。"
+            return f"{status_text}：{detail}\n请确认仓库已经发布公开 Release。"
+        if status_code:
+            detail = github_message or network_message or "GitHub 返回了异常响应。"
+            return f"{status_text}：{detail}"
+        return network_message or "无法连接到 GitHub，请检查网络后重试。"
+
+    @staticmethod
+    def _github_error_message(payload: str) -> str:
+        if not payload.strip():
+            return ""
+        try:
+            data = json.loads(payload)
+        except json.JSONDecodeError:
+            return payload.strip()[:240]
+        message = data.get("message", "")
+        return str(message).strip()
+
+    def _show_update_error(self, message: str) -> None:
+        reply_button = QMessageBox.question(
+            self,
+            "检查更新失败",
+            f"{message}\n\n是否打开 Releases 页面手动查看？",
+        )
+        if reply_button == QMessageBox.StandardButton.Yes:
+            QDesktopServices.openUrl(QUrl(GITHUB_RELEASES_URL))
 
     def _on_nav_changed(self, index: int) -> None:
         if index >= 0:

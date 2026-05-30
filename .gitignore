@@ -23,3 +23,5 @@ saves/
 # IDE
 .vscode/
 .idea/
+
+scripts/
