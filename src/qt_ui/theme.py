@@ -428,14 +428,42 @@ QScrollArea#shinyScroll QScrollBar:horizontal {
 
 QScrollArea#shinyScroll QScrollBar:vertical {
     background: transparent;
+    border: none;
     width: 6px;
-    margin: 6px 2px 6px 0;
+    margin: 0;
 }
 
 QScrollArea#shinyScroll QScrollBar::handle:vertical {
-    background: #34404f;
+    background: transparent;
     border-radius: 3px;
     min-height: 28px;
+}
+
+QScrollArea#shinyScroll QScrollBar::add-page:vertical,
+QScrollArea#shinyScroll QScrollBar::sub-page:vertical,
+QScrollArea#shinyScroll QScrollBar::groove:vertical {
+    background: transparent;
+    border: none;
+}
+
+QScrollArea#shinyScroll QScrollBar::add-line:vertical,
+QScrollArea#shinyScroll QScrollBar::sub-line:vertical {
+    background: transparent;
+    border: none;
+    height: 0;
+    width: 0;
+}
+
+QScrollArea#shinyScroll QScrollBar::up-arrow:vertical,
+QScrollArea#shinyScroll QScrollBar::down-arrow:vertical {
+    background: transparent;
+    border: none;
+    height: 0;
+    width: 0;
+}
+
+QScrollArea#shinyScroll[scrollHover="true"] QScrollBar::handle:vertical {
+    background: #34404f;
 }
 
 QScrollArea#shinyScroll QScrollBar::handle:vertical:hover {
@@ -497,7 +525,7 @@ QLabel#shinyPityValue {
     font-size: 28px;
     font-weight: 800;
     border: none;
-    min-width: 48px;
+    min-width: 42px;
 }
 
 QLabel#shinyPityValue[state="warn"] {

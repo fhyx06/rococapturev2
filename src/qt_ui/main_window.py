@@ -249,20 +249,38 @@ class AccordionTreeWidget(QTreeWidget):
 
 
 class HoverScrollArea(QScrollArea):
-    """默认隐藏滚动条，鼠标移入后按需显示。"""
+    """内容可滚动时预留滚动条宽度，鼠标移入后显示滑块。"""
 
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
+        self.setProperty("scrollHover", "false")
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.verticalScrollBar().rangeChanged.connect(lambda *_: self._sync_scrollbar_policy())
 
     def enterEvent(self, event) -> None:
-        self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self._set_scroll_hover(True)
         super().enterEvent(event)
 
     def leaveEvent(self, event) -> None:
-        self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self._set_scroll_hover(False)
         super().leaveEvent(event)
+
+    def _set_scroll_hover(self, enabled: bool) -> None:
+        self.setProperty("scrollHover", "true" if enabled else "false")
+        for widget in (self, self.verticalScrollBar()):
+            widget.style().unpolish(widget)
+            widget.style().polish(widget)
+            widget.update()
+
+    def _sync_scrollbar_policy(self) -> None:
+        policy = (
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOn
+            if self.verticalScrollBar().maximum() > 0
+            else Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
+        if self.verticalScrollBarPolicy() != policy:
+            self.setVerticalScrollBarPolicy(policy)
 
 
 class ManualShinyDialog(QDialog):
@@ -420,8 +438,8 @@ class ShinyRecordCard(QWidget):
         self.setToolTip(tooltip)
 
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(10, 8, 10, 8)
-        layout.setSpacing(9)
+        layout.setContentsMargins(10, 8, 16, 8)
+        layout.setSpacing(7)
 
         icon = QLabel()
         icon.setObjectName("shinyCardIcon")
@@ -481,10 +499,7 @@ class ShinyRecordCard(QWidget):
 
     @staticmethod
     def _title_text(record: ShinyRecord) -> str:
-        title = ShinyRecordCard._display_spirit_name(record.spirit_name)
-        if record.season:
-            title = f"{title} ({record.season})"
-        return title
+        return ShinyRecordCard._display_spirit_name(record.spirit_name)
 
     @staticmethod
     def _display_timestamp(timestamp: str) -> str:
@@ -516,6 +531,7 @@ class QtMainWindow(QMainWindow):
     def __init__(self, save_service: SaveService):
         super().__init__()
         self._save_svc = save_service
+        self._seasons = load_seasons()
         self._family_items: dict[str, list[QTreeWidgetItem]] = {}
         self._family_count_labels: dict[str, list[QLabel]] = {}
         self._element_items: dict[str, QPushButton] = {}
@@ -655,7 +671,7 @@ class QtMainWindow(QMainWindow):
         self.sidebar.setCurrentRow(0)
         # 窗口大小
         self.setCentralWidget(root)
-        self.resize(1347, 780)
+        self.resize(1260, 780)
         self.setMinimumSize(1040, 620)
 
     def _card_counter(self, label: str, widget_name: str = "") -> tuple[QWidget, QLabel]:
@@ -870,6 +886,22 @@ class QtMainWindow(QMainWindow):
         header.setObjectName("pageHeader")
         top_row.addWidget(header)
         top_row.addStretch()
+
+        season_label = QLabel("赛季")
+        season_label.setObjectName("topBarLabel")
+        self.shiny_season_combo = QComboBox()
+        self.shiny_season_combo.setObjectName("shinySeasonCombo")
+        self.shiny_season_combo.setMinimumWidth(96)
+        for season in self._seasons:
+            season_id = str(season.get("season", ""))
+            self.shiny_season_combo.addItem(season_id, season_id)
+        latest = get_latest_season()
+        if latest:
+            self.shiny_season_combo.setCurrentText(str(latest.get("season", "")))
+        self.shiny_season_combo.currentIndexChanged.connect(self._on_shiny_season_changed)
+        top_row.addWidget(season_label)
+        top_row.addWidget(self.shiny_season_combo)
+
         add_btn = QPushButton("手动添加")
         self.delete_shiny_btn = QPushButton("删除选中")
         self.delete_shiny_btn.setEnabled(False)
@@ -883,9 +915,9 @@ class QtMainWindow(QMainWindow):
         columns.setSpacing(12)
         self._shiny_column_layouts.clear()
         for pool_type, title in [
-            (POOL_RANDOM, "🎰 随机池记录"),
-            (POOL_FAMILY, "👪 家族池记录"),
-            (POOL_ELEMENT, "⚡ 属性池记录"),
+            (POOL_RANDOM, "🎲 随机池记录"),
+            (POOL_FAMILY, "🐾 家族池记录"),
+            (POOL_ELEMENT, "🔥 属性池记录"),
         ]:
             column = QWidget()
             column.setObjectName("shinyColumn")
@@ -1536,6 +1568,7 @@ class QtMainWindow(QMainWindow):
         self._on_element_selected()
 
     def _load_shiny_records(self, records: list[ShinyRecord]) -> None:
+        selected_season = self._selected_shiny_season()
         for cards_layout in self._shiny_column_layouts.values():
             while cards_layout.count():
                 item = cards_layout.takeAt(0)
@@ -1554,6 +1587,8 @@ class QtMainWindow(QMainWindow):
         }
         for index in range(len(records) - 1, -1, -1):
             record = records[index]
+            if selected_season and record.season != selected_season:
+                continue
             grouped[self._shiny_display_pool(record)].append((index, record))
 
         for pool_type, cards_layout in self._shiny_column_layouts.items():
@@ -1586,6 +1621,17 @@ class QtMainWindow(QMainWindow):
             card.set_selected(card_index == self._selected_shiny_index)
         if hasattr(self, "delete_shiny_btn"):
             self.delete_shiny_btn.setEnabled(self._selected_shiny_index is not None)
+
+    def _on_shiny_season_changed(self) -> None:
+        slot = self._save_svc.current
+        if slot:
+            self._load_shiny_records(slot.shiny_records)
+
+    def _selected_shiny_season(self) -> str:
+        if hasattr(self, "shiny_season_combo"):
+            return str(self.shiny_season_combo.currentData() or "")
+        latest = get_latest_season()
+        return str(latest.get("season", "")) if latest else ""
 
     @staticmethod
     def _shiny_display_pool(record: ShinyRecord) -> str:
