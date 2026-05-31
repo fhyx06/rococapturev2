@@ -43,6 +43,7 @@ from src.__about__ import (
     APP_DISPLAY_NAME,
     APP_NAME,
     APP_VERSION,
+    GITHUB_PROJECT_URL,
     GITHUB_RELEASES_URL,
     UPDATE_MANIFEST_URL,
 )
@@ -1048,6 +1049,20 @@ class QtMainWindow(QMainWindow):
         info.setWordWrap(True)
         layout.addWidget(info)
 
+        project_row = QHBoxLayout()
+        self.github_project_btn = QPushButton("GitHub 项目")
+        self.github_project_btn.setObjectName("githubProjectButton")
+        self.github_project_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.github_project_btn.setIcon(QIcon(str(ICONS_DIR / "github.svg")))
+        self.github_project_btn.setIconSize(QSize(20, 20))
+        self.github_project_btn.clicked.connect(self._open_github_project)
+        project_status = QLabel("查看源码、版本发布与项目主页")
+        project_status.setObjectName("mutedLabel")
+        project_status.setWordWrap(True)
+        project_row.addWidget(self.github_project_btn)
+        project_row.addWidget(project_status, 1)
+        layout.addLayout(project_row)
+
         update_row = QHBoxLayout()
         self.update_check_btn = QPushButton("检查更新")
         self.update_check_btn.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -1062,6 +1077,9 @@ class QtMainWindow(QMainWindow):
         layout.addStretch()
 
         self.page_stack.addWidget(page)
+
+    def _open_github_project(self) -> None:
+        QDesktopServices.openUrl(QUrl(GITHUB_PROJECT_URL))
 
     def _check_for_updates(self) -> None:
         if self._update_reply is not None:

@@ -233,6 +233,16 @@ QPushButton:pressed {
     background: #202631;
 }
 
+QPushButton#githubProjectButton {
+    min-width: 118px;
+    text-align: left;
+    font-weight: 600;
+}
+
+QPushButton#githubProjectButton:hover {
+    border-color: #5d88cf;
+}
+
 QPushButton[role="increase"] {
     background: #1d3328;
     border-color: #2f7d57;
