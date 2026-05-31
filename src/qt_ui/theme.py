@@ -98,12 +98,29 @@ QListWidget#sidebar::item:selected {
     color: #ffffff;
 }
 
-QTextEdit#logPanel {
+QWidget#logColumn {
     background: #15171c;
-    border: none;
     border-left: 1px solid #2a2f38;
+}
+
+QLabel#logTitle {
+    color: #eef3f8;
+    font-size: 13px;
+    font-weight: 700;
+    border: none;
+}
+
+QComboBox#logFilterCombo {
+    min-width: 78px;
+    min-height: 28px;
+    padding: 5px 26px 5px 9px;
+}
+
+QTextEdit#logPanel {
+    background: transparent;
+    border: none;
     color: #8f9aaa;
-    padding: 12px 10px 12px 12px;
+    padding: 0 2px 0 0;
     font-family: "Cascadia Mono", "Consolas", monospace;
     font-size: 12px;
     line-height: 140%;
@@ -421,19 +438,26 @@ QWidget#shinyColumnContent {
     border: none;
 }
 
-QScrollArea#shinyScroll QScrollBar:horizontal {
+QScrollArea#shinyScroll QScrollBar:horizontal,
+QTreeWidget#familyTree QScrollBar:horizontal,
+QTextEdit#logPanel QScrollBar:horizontal {
     height: 0;
     background: transparent;
+    border: none;
 }
 
-QScrollArea#shinyScroll QScrollBar:vertical {
+QScrollArea#shinyScroll QScrollBar:vertical,
+QTreeWidget#familyTree QScrollBar:vertical,
+QTextEdit#logPanel QScrollBar:vertical {
     background: transparent;
     border: none;
     width: 6px;
     margin: 0;
 }
 
-QScrollArea#shinyScroll QScrollBar::handle:vertical {
+QScrollArea#shinyScroll QScrollBar::handle:vertical,
+QTreeWidget#familyTree QScrollBar::handle:vertical,
+QTextEdit#logPanel QScrollBar::handle:vertical {
     background: transparent;
     border-radius: 3px;
     min-height: 28px;
@@ -441,13 +465,23 @@ QScrollArea#shinyScroll QScrollBar::handle:vertical {
 
 QScrollArea#shinyScroll QScrollBar::add-page:vertical,
 QScrollArea#shinyScroll QScrollBar::sub-page:vertical,
-QScrollArea#shinyScroll QScrollBar::groove:vertical {
+QScrollArea#shinyScroll QScrollBar::groove:vertical,
+QTreeWidget#familyTree QScrollBar::add-page:vertical,
+QTreeWidget#familyTree QScrollBar::sub-page:vertical,
+QTreeWidget#familyTree QScrollBar::groove:vertical,
+QTextEdit#logPanel QScrollBar::add-page:vertical,
+QTextEdit#logPanel QScrollBar::sub-page:vertical,
+QTextEdit#logPanel QScrollBar::groove:vertical {
     background: transparent;
     border: none;
 }
 
 QScrollArea#shinyScroll QScrollBar::add-line:vertical,
-QScrollArea#shinyScroll QScrollBar::sub-line:vertical {
+QScrollArea#shinyScroll QScrollBar::sub-line:vertical,
+QTreeWidget#familyTree QScrollBar::add-line:vertical,
+QTreeWidget#familyTree QScrollBar::sub-line:vertical,
+QTextEdit#logPanel QScrollBar::add-line:vertical,
+QTextEdit#logPanel QScrollBar::sub-line:vertical {
     background: transparent;
     border: none;
     height: 0;
@@ -455,18 +489,26 @@ QScrollArea#shinyScroll QScrollBar::sub-line:vertical {
 }
 
 QScrollArea#shinyScroll QScrollBar::up-arrow:vertical,
-QScrollArea#shinyScroll QScrollBar::down-arrow:vertical {
+QScrollArea#shinyScroll QScrollBar::down-arrow:vertical,
+QTreeWidget#familyTree QScrollBar::up-arrow:vertical,
+QTreeWidget#familyTree QScrollBar::down-arrow:vertical,
+QTextEdit#logPanel QScrollBar::up-arrow:vertical,
+QTextEdit#logPanel QScrollBar::down-arrow:vertical {
     background: transparent;
     border: none;
     height: 0;
     width: 0;
 }
 
-QScrollArea#shinyScroll[scrollHover="true"] QScrollBar::handle:vertical {
+QScrollArea#shinyScroll[scrollHover="true"] QScrollBar::handle:vertical,
+QTreeWidget#familyTree[scrollHover="true"] QScrollBar::handle:vertical,
+QTextEdit#logPanel[scrollHover="true"] QScrollBar::handle:vertical {
     background: #34404f;
 }
 
-QScrollArea#shinyScroll QScrollBar::handle:vertical:hover {
+QScrollArea#shinyScroll QScrollBar::handle:vertical:hover,
+QTreeWidget#familyTree QScrollBar::handle:vertical:hover,
+QTextEdit#logPanel QScrollBar::handle:vertical:hover {
     background: #4a5a70;
 }
 
@@ -560,27 +602,6 @@ QTableWidget::item:selected {
     color: #ffffff;
 }
 
-QTreeWidget QScrollBar:horizontal {
-    height: 0;
-    background: transparent;
-}
-
-QTreeWidget QScrollBar:vertical {
-    background: transparent;
-    width: 6px;
-    margin: 6px 2px 6px 0;
-}
-
-QTreeWidget QScrollBar::handle:vertical {
-    background: #34404f;
-    border-radius: 3px;
-    min-height: 28px;
-}
-
-QTreeWidget QScrollBar::handle:vertical:hover {
-    background: #4a5a70;
-}
-
 QHeaderView::section {
     background: #252b35;
     border: 0;
@@ -637,26 +658,6 @@ QListWidget#sidebar QScrollBar:horizontal {
     background: transparent;
 }
 
-QTextEdit#logPanel QScrollBar:horizontal {
-    height: 0;
-    background: transparent;
-}
-
-QTextEdit#logPanel QScrollBar:vertical {
-    background: transparent;
-    width: 6px;
-    margin: 4px 0 4px 0;
-}
-
-QTextEdit#logPanel QScrollBar::handle:vertical {
-    background: #2f3846;
-    border-radius: 3px;
-    min-height: 28px;
-}
-
-QTextEdit#logPanel QScrollBar::handle:vertical:hover {
-    background: #46566a;
-}
 """.replace("__CHEVRON_DOWN_ICON__", _CHEVRON_DOWN_ICON).replace(
     "__CHEVRON_RIGHT_ICON__", _CHEVRON_RIGHT_ICON
 )

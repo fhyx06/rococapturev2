@@ -4,13 +4,15 @@ from __future__ import annotations
 import json
 import re
 from datetime import datetime
+from html import escape
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QMargins, QSize, QTimer, QUrl, Signal
+from PySide6.QtCore import QEvent, QObject, Qt, QMargins, QSize, QTimer, QUrl, Signal
 from PySide6.QtGui import QDesktopServices, QIcon, QTextOption
 from PySide6.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QAbstractScrollArea,
     QCheckBox,
     QComboBox,
     QDialog,
@@ -65,6 +67,23 @@ from src.services.save_service import SaveService
 ASSETS_DIR = Path(__file__).resolve().parents[1] / "assets"
 ICONS_DIR = ASSETS_DIR / "icons"
 SPIRITS_DIR = ASSETS_DIR / "spirits"
+LOG_FILTER_ALL = "all"
+LOG_FILTER_OTHER = "other"
+LOG_FILTER_OPTIONS = [
+    ("全部", LOG_FILTER_ALL),
+    ("家族", POOL_FAMILY),
+    ("随机", POOL_RANDOM),
+    ("属性", POOL_ELEMENT),
+    ("其他", LOG_FILTER_OTHER),
+]
+
+# 日志颜色权重：家族使用最频繁，因此最亮；随机次之；属性和其他保持低饱和。
+LOG_COLORS = {
+    POOL_FAMILY: {"accent": "#f3b34b", "text": "#f1d39a", "bg": "#2b251b"},
+    POOL_RANDOM: {"accent": "#78a9ff", "text": "#b9d3ff", "bg": "#1f2736"},
+    POOL_ELEMENT: {"accent": "#6fb8a6", "text": "#a8d9ce", "bg": "#1d2b2a"},
+    LOG_FILTER_OTHER: {"accent": "#8e98a8", "text": "#b8c0cc", "bg": "#222630"},
+}
 
 
 def spirit_display(spirit: dict) -> str:
@@ -248,39 +267,57 @@ class AccordionTreeWidget(QTreeWidget):
         super().mousePressEvent(event)
 
 
+class HoverScrollController(QObject):
+    """内容可滚动时预留滚动条宽度，鼠标移入后显示滑块。"""
+
+    def __init__(self, area: QAbstractScrollArea):
+        super().__init__(area)
+        self._area = area
+        area.setProperty("scrollHover", "false")
+        area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        area.installEventFilter(self)
+        area.verticalScrollBar().rangeChanged.connect(lambda *_: self.sync_scrollbar_policy())
+        QTimer.singleShot(0, self.sync_scrollbar_policy)
+
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:
+        if watched is self._area:
+            if event.type() == QEvent.Type.Enter:
+                self.set_scroll_hover(True)
+            elif event.type() == QEvent.Type.Leave:
+                self.set_scroll_hover(False)
+        return super().eventFilter(watched, event)
+
+    def set_scroll_hover(self, enabled: bool) -> None:
+        self._area.setProperty("scrollHover", "true" if enabled else "false")
+        for widget in (self._area, self._area.verticalScrollBar()):
+            widget.style().unpolish(widget)
+            widget.style().polish(widget)
+        self._area.viewport().update()
+        self._area.verticalScrollBar().update()
+
+    def sync_scrollbar_policy(self) -> None:
+        policy = (
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOn
+            if self._area.verticalScrollBar().maximum() > 0
+            else Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
+        if self._area.verticalScrollBarPolicy() != policy:
+            self._area.setVerticalScrollBarPolicy(policy)
+
+
+def install_hover_scrollbar(area: QAbstractScrollArea) -> HoverScrollController:
+    controller = HoverScrollController(area)
+    area._hover_scroll_controller = controller
+    return controller
+
+
 class HoverScrollArea(QScrollArea):
     """内容可滚动时预留滚动条宽度，鼠标移入后显示滑块。"""
 
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
-        self.setProperty("scrollHover", "false")
-        self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.verticalScrollBar().rangeChanged.connect(lambda *_: self._sync_scrollbar_policy())
-
-    def enterEvent(self, event) -> None:
-        self._set_scroll_hover(True)
-        super().enterEvent(event)
-
-    def leaveEvent(self, event) -> None:
-        self._set_scroll_hover(False)
-        super().leaveEvent(event)
-
-    def _set_scroll_hover(self, enabled: bool) -> None:
-        self.setProperty("scrollHover", "true" if enabled else "false")
-        for widget in (self, self.verticalScrollBar()):
-            widget.style().unpolish(widget)
-            widget.style().polish(widget)
-            widget.update()
-
-    def _sync_scrollbar_policy(self) -> None:
-        policy = (
-            Qt.ScrollBarPolicy.ScrollBarAlwaysOn
-            if self.verticalScrollBar().maximum() > 0
-            else Qt.ScrollBarPolicy.ScrollBarAlwaysOff
-        )
-        if self.verticalScrollBarPolicy() != policy:
-            self.setVerticalScrollBarPolicy(policy)
+        self._hover_scroll_controller = install_hover_scrollbar(self)
 
 
 class ManualShinyDialog(QDialog):
@@ -655,14 +692,36 @@ class QtMainWindow(QMainWindow):
         body.addWidget(self.page_stack, 1)
 
         # 右侧日志
+        log_column = QWidget()
+        log_column.setObjectName("logColumn")
+        log_column.setFixedWidth(248)
+        log_layout = QVBoxLayout(log_column)
+        log_layout.setContentsMargins(12, 12, 10, 12)
+        log_layout.setSpacing(10)
+
+        log_header = QHBoxLayout()
+        log_header.setContentsMargins(0, 0, 0, 0)
+        log_title = QLabel("日志")
+        log_title.setObjectName("logTitle")
+        log_header.addWidget(log_title)
+        log_header.addStretch()
+
+        self.log_filter_combo = QComboBox()
+        self.log_filter_combo.setObjectName("logFilterCombo")
+        for label, value in LOG_FILTER_OPTIONS:
+            self.log_filter_combo.addItem(label, value)
+        self.log_filter_combo.currentIndexChanged.connect(self._on_log_filter_changed)
+        log_header.addWidget(self.log_filter_combo)
+        log_layout.addLayout(log_header)
+
         self.log_text = QTextEdit()
         self.log_text.setObjectName("logPanel")
         self.log_text.setReadOnly(True)
         self.log_text.setLineWrapMode(QTextEdit.LineWrapMode.WidgetWidth)
         self.log_text.setWordWrapMode(QTextOption.WrapMode.WrapAtWordBoundaryOrAnywhere)
-        self.log_text.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.log_text.setFixedWidth(248)
-        body.addWidget(self.log_text)
+        install_hover_scrollbar(self.log_text)
+        log_layout.addWidget(self.log_text, 1)
+        body.addWidget(log_column)
 
         main_layout.addLayout(body, 1)
 
@@ -767,6 +826,7 @@ class QtMainWindow(QMainWindow):
         splitter = QSplitter(Qt.Orientation.Horizontal)
 
         self.family_tree = AccordionTreeWidget()
+        self.family_tree.setObjectName("familyTree")
         self.family_tree.setColumnCount(1)
         self.family_tree.setHeaderLabels(["精灵"])
         self.family_tree.setHeaderHidden(True)
@@ -776,7 +836,7 @@ class QtMainWindow(QMainWindow):
         self.family_tree.setIndentation(16)
         self.family_tree.setRootIsDecorated(True)
         self.family_tree.setExpandsOnDoubleClick(False)
-        self.family_tree.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        install_hover_scrollbar(self.family_tree)
         self.family_tree.currentItemChanged.connect(self._on_family_selected)
         splitter.addWidget(self.family_tree)
 
@@ -1640,13 +1700,74 @@ class QtMainWindow(QMainWindow):
         return POOL_RANDOM
 
     def _load_logs(self, logs: list[ActivityLog]) -> None:
-        lines = [f"[{self._pool_label(log.pool_type)}] {log.format_display()}" for log in reversed(logs)]
-        self.log_text.setPlainText("\n\n".join(lines))
+        selected_filter = self._selected_log_filter()
+        visible_logs = [
+            log for log in reversed(logs)
+            if self._log_matches_filter(log, selected_filter)
+        ]
+        if not visible_logs:
+            label = self._log_filter_label(selected_filter)
+            self.log_text.setHtml(
+                "<html><body style='margin:0; padding:0;'>"
+                f"<div style='color:#667285; padding:10px 2px;'>暂无{escape(label)}日志</div>"
+                "</body></html>"
+            )
+            return
+
+        rows = [self._log_row_html(log) for log in visible_logs]
+        self.log_text.setHtml(
+            "<html><body style='margin:0; padding:0; "
+            "font-family:\"Cascadia Mono\", \"Consolas\", monospace; font-size:12px;'>"
+            f"{''.join(rows)}</body></html>"
+        )
+
+    def _on_log_filter_changed(self) -> None:
+        slot = self._save_svc.current
+        if slot:
+            self._load_logs(slot.logs)
+
+    def _selected_log_filter(self) -> str:
+        if hasattr(self, "log_filter_combo"):
+            return str(self.log_filter_combo.currentData() or LOG_FILTER_ALL)
+        return LOG_FILTER_ALL
+
+    @staticmethod
+    def _log_pool_key(pool_type: str) -> str:
+        if pool_type in {POOL_RANDOM, POOL_FAMILY, POOL_ELEMENT}:
+            return pool_type
+        return LOG_FILTER_OTHER
+
+    def _log_matches_filter(self, log: ActivityLog, selected_filter: str) -> bool:
+        if selected_filter == LOG_FILTER_ALL:
+            return True
+        return self._log_pool_key(log.pool_type) == selected_filter
+
+    @staticmethod
+    def _log_filter_label(selected_filter: str) -> str:
+        for label, value in LOG_FILTER_OPTIONS:
+            if value == selected_filter:
+                return label
+        return "对应"
+
+    def _log_row_html(self, log: ActivityLog) -> str:
+        pool_key = self._log_pool_key(log.pool_type)
+        colors = LOG_COLORS.get(pool_key, LOG_COLORS[LOG_FILTER_OTHER])
+        label = escape(self._pool_label(log.pool_type))
+        text = escape(log.format_display())
+        return (
+            "<div style='"
+            "margin:0 0 10px 0; padding:7px 8px; border-radius:6px; "
+            f"border-left:2px solid {colors['accent']}; background:{colors['bg']};"
+            "'>"
+            f"<span style='color:{colors['accent']}; font-weight:700;'>[{label}]</span>"
+            f"<span style='color:{colors['text']};'> {text}</span>"
+            "</div>"
+        )
 
     @staticmethod
     def _pool_label(pool_type: str) -> str:
-        mapping = {POOL_RANDOM: "随机", POOL_FAMILY: "家族", POOL_ELEMENT: "属性", POOL_UNKNOWN: "未知池"}
-        return mapping.get(pool_type, "未知")
+        mapping = {POOL_RANDOM: "随机", POOL_FAMILY: "家族", POOL_ELEMENT: "属性", POOL_UNKNOWN: "其他"}
+        return mapping.get(pool_type, "其他")
 
     def _selected_family_data(self) -> dict | None:
         """获取家族树中当前选中的精灵信息。"""
