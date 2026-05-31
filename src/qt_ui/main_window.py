@@ -1040,10 +1040,6 @@ class QtMainWindow(QMainWindow):
         info = QLabel(
             f"{APP_DISPLAY_NAME}\n v{APP_VERSION}\n\n"
             "洛克王国异色保底追踪工具\n\n"
-            "保底规则：\n"
-            "  · 满保底 80 抽（真有人吃满吗？）\n"
-            "  · 预警阈值 70 抽\n\n"
-            "PySide6 / Qt 重构版\n"
         )
         info.setObjectName("mutedLabel")
         info.setWordWrap(True)
