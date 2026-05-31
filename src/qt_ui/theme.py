@@ -112,8 +112,8 @@ QLabel#logTitle {
 
 QComboBox#logFilterCombo {
     min-width: 78px;
-    min-height: 28px;
-    padding: 5px 26px 5px 9px;
+    min-height: 24px;
+    padding: 3px 26px 3px 9px;
 }
 
 QTextEdit#logPanel {

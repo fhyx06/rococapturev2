@@ -69,6 +69,7 @@ ICONS_DIR = ASSETS_DIR / "icons"
 SPIRITS_DIR = ASSETS_DIR / "spirits"
 LOG_FILTER_ALL = "all"
 LOG_FILTER_OTHER = "other"
+SCROLLBAR_GUTTER_WIDTH = 6
 LOG_FILTER_OPTIONS = [
     ("全部", LOG_FILTER_ALL),
     ("家族", POOL_FAMILY),
@@ -270,9 +271,11 @@ class AccordionTreeWidget(QTreeWidget):
 class HoverScrollController(QObject):
     """内容可滚动时预留滚动条宽度，鼠标移入后显示滑块。"""
 
-    def __init__(self, area: QAbstractScrollArea):
+    def __init__(self, area: QAbstractScrollArea, reserve_inactive_gutter: bool = False):
         super().__init__(area)
         self._area = area
+        self._reserve_inactive_gutter = reserve_inactive_gutter
+        self._current_gutter_width = -1
         area.setProperty("scrollHover", "false")
         area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
@@ -297,17 +300,29 @@ class HoverScrollController(QObject):
         self._area.verticalScrollBar().update()
 
     def sync_scrollbar_policy(self) -> None:
+        has_scrollbar = self._area.verticalScrollBar().maximum() > 0
+        self._set_inactive_gutter(0 if has_scrollbar else SCROLLBAR_GUTTER_WIDTH)
         policy = (
             Qt.ScrollBarPolicy.ScrollBarAlwaysOn
-            if self._area.verticalScrollBar().maximum() > 0
+            if has_scrollbar
             else Qt.ScrollBarPolicy.ScrollBarAlwaysOff
         )
         if self._area.verticalScrollBarPolicy() != policy:
             self._area.setVerticalScrollBarPolicy(policy)
 
+    def _set_inactive_gutter(self, width: int) -> None:
+        width = width if self._reserve_inactive_gutter else 0
+        if self._current_gutter_width == width:
+            return
+        self._current_gutter_width = width
+        self._area.setViewportMargins(0, 0, width, 0)
 
-def install_hover_scrollbar(area: QAbstractScrollArea) -> HoverScrollController:
-    controller = HoverScrollController(area)
+
+def install_hover_scrollbar(
+    area: QAbstractScrollArea,
+    reserve_inactive_gutter: bool = False,
+) -> HoverScrollController:
+    controller = HoverScrollController(area, reserve_inactive_gutter)
     area._hover_scroll_controller = controller
     return controller
 
@@ -317,7 +332,10 @@ class HoverScrollArea(QScrollArea):
 
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
-        self._hover_scroll_controller = install_hover_scrollbar(self)
+        self._hover_scroll_controller = install_hover_scrollbar(
+            self,
+            reserve_inactive_gutter=True,
+        )
 
 
 class ManualShinyDialog(QDialog):
@@ -480,9 +498,9 @@ class ShinyRecordCard(QWidget):
 
         icon = QLabel()
         icon.setObjectName("shinyCardIcon")
-        icon.setFixedSize(38, 38)
+        icon.setFixedSize(44, 44)
         icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        icon.setPixmap(spirit_icon(record.spirit_name, record.season).pixmap(34, 34))
+        icon.setPixmap(spirit_icon(record.spirit_name, record.season).pixmap(40, 40))
         layout.addWidget(icon)
 
         text_col = QVBoxLayout()
@@ -708,6 +726,7 @@ class QtMainWindow(QMainWindow):
 
         self.log_filter_combo = QComboBox()
         self.log_filter_combo.setObjectName("logFilterCombo")
+        self.log_filter_combo.setFixedHeight(32)
         for label, value in LOG_FILTER_OPTIONS:
             self.log_filter_combo.addItem(label, value)
         self.log_filter_combo.currentIndexChanged.connect(self._on_log_filter_changed)
@@ -730,7 +749,7 @@ class QtMainWindow(QMainWindow):
         self.sidebar.setCurrentRow(0)
         # 窗口大小
         self.setCentralWidget(root)
-        self.resize(1260, 780)
+        self.resize(1277, 780)
         self.setMinimumSize(1040, 620)
 
     def _card_counter(self, label: str, widget_name: str = "") -> tuple[QWidget, QLabel]:
