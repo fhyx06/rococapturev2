@@ -421,11 +421,32 @@ QWidget#shinyColumnContent {
     border: none;
 }
 
+QScrollArea#shinyScroll QScrollBar:horizontal {
+    height: 0;
+    background: transparent;
+}
+
+QScrollArea#shinyScroll QScrollBar:vertical {
+    background: transparent;
+    width: 6px;
+    margin: 6px 2px 6px 0;
+}
+
+QScrollArea#shinyScroll QScrollBar::handle:vertical {
+    background: #34404f;
+    border-radius: 3px;
+    min-height: 28px;
+}
+
+QScrollArea#shinyScroll QScrollBar::handle:vertical:hover {
+    background: #4a5a70;
+}
+
 QWidget#shinyRecordCard {
     background: #252b35;
     border: 1px solid #384151;
     border-radius: 8px;
-    min-height: 82px;
+    min-height: 58px;
 }
 
 QWidget#shinyRecordCard:hover {
@@ -468,6 +489,28 @@ QLabel#shinyCardTitle {
 QLabel#shinyCardMeta {
     color: #aeb8c7;
     font-size: 12px;
+    border: none;
+}
+
+QLabel#shinyPityValue {
+    color: #74d99f;
+    font-size: 28px;
+    font-weight: 800;
+    border: none;
+    min-width: 48px;
+}
+
+QLabel#shinyPityValue[state="warn"] {
+    color: #f3b34b;
+}
+
+QLabel#shinyPityValue[state="critical"] {
+    color: #ff8e8e;
+}
+
+QLabel#shinyPityLabel {
+    color: #7f8a9a;
+    font-size: 11px;
     border: none;
 }
 

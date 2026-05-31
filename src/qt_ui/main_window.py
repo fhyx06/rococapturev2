@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import re
+from datetime import datetime
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QMargins, QSize, QTimer, QUrl, Signal
@@ -247,6 +248,23 @@ class AccordionTreeWidget(QTreeWidget):
         super().mousePressEvent(event)
 
 
+class HoverScrollArea(QScrollArea):
+    """默认隐藏滚动条，鼠标移入后按需显示。"""
+
+    def __init__(self, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+
+    def enterEvent(self, event) -> None:
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        super().enterEvent(event)
+
+    def leaveEvent(self, event) -> None:
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        super().leaveEvent(event)
+
+
 class ManualShinyDialog(QDialog):
     """异色明细页手动补录。"""
 
@@ -386,7 +404,6 @@ class ShinyRecordCard(QWidget):
         self,
         index: int,
         record: ShinyRecord,
-        pool_label: str,
         element: str,
         parent: QWidget | None = None,
     ):
@@ -397,11 +414,14 @@ class ShinyRecordCard(QWidget):
         self.setProperty("selected", "false")
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.setToolTip(record.format_display())
+        tooltip = record.format_display()
+        if record.pool_type == POOL_ELEMENT and element:
+            tooltip = f"{tooltip}\n属性：{element}"
+        self.setToolTip(tooltip)
 
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(10, 10, 10, 10)
-        layout.setSpacing(10)
+        layout.setContentsMargins(10, 8, 10, 8)
+        layout.setSpacing(9)
 
         icon = QLabel()
         icon.setObjectName("shinyCardIcon")
@@ -412,36 +432,39 @@ class ShinyRecordCard(QWidget):
 
         text_col = QVBoxLayout()
         text_col.setContentsMargins(0, 0, 0, 0)
-        text_col.setSpacing(3)
+        text_col.setSpacing(4)
 
         title = QLabel(self._title_text(record))
         title.setObjectName("shinyCardTitle")
-        title.setWordWrap(True)
+        title.setWordWrap(False)
+        title.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
+        title.setToolTip(self._title_text(record))
         text_col.addWidget(title)
 
-        date = QLabel(f"时间 {self._short_timestamp(record.timestamp)}")
+        date = QLabel(self._display_timestamp(record.timestamp))
         date.setObjectName("shinyCardMeta")
+        date.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         text_col.addWidget(date)
 
-        meta_row = QHBoxLayout()
-        meta_row.setContentsMargins(0, 0, 0, 0)
-        meta_row.setSpacing(5)
-        if record.pool_type == POOL_ELEMENT and element:
-            element_label = QLabel()
-            element_label.setFixedSize(16, 16)
-            element_label.setPixmap(element_icon(element).pixmap(16, 16))
-            meta_row.addWidget(element_label)
-            meta = QLabel(f"属性: {element}  保底: {record.pity_count}")
-        elif record.pool_type == POOL_UNKNOWN:
-            meta = QLabel(f"来源: {pool_label}  保底: {record.pity_count}")
-        else:
-            meta = QLabel(f"保底数: {record.pity_count}")
-        meta.setObjectName("shinyCardMeta")
-        meta.setWordWrap(True)
-        meta_row.addWidget(meta, 1)
-        text_col.addLayout(meta_row)
-
         layout.addLayout(text_col, 1)
+
+        pity_col = QVBoxLayout()
+        pity_col.setContentsMargins(0, 0, 0, 0)
+        pity_col.setSpacing(0)
+        pity_col.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        pity_value = QLabel(str(record.pity_count))
+        pity_value.setObjectName("shinyPityValue")
+        pity_value.setProperty("state", self._pity_state(record.pity_count))
+        pity_value.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        pity_col.addWidget(pity_value)
+
+        pity_label = QLabel("保底")
+        pity_label.setObjectName("shinyPityLabel")
+        pity_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        pity_col.addWidget(pity_label)
+
+        layout.addLayout(pity_col)
 
     def set_selected(self, selected: bool) -> None:
         self.setProperty("selected", "true" if selected else "false")
@@ -458,21 +481,33 @@ class ShinyRecordCard(QWidget):
 
     @staticmethod
     def _title_text(record: ShinyRecord) -> str:
-        title = ShinyRecordCard._short_spirit_name(record.spirit_name)
+        title = ShinyRecordCard._display_spirit_name(record.spirit_name)
         if record.season:
             title = f"{title} ({record.season})"
-        return f"★ {title}"
+        return title
 
     @staticmethod
-    def _short_timestamp(timestamp: str) -> str:
-        if len(timestamp) >= 16:
-            return timestamp[5:16]
-        return timestamp or "未知时间"
+    def _display_timestamp(timestamp: str) -> str:
+        try:
+            parsed = datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S")
+        except (TypeError, ValueError):
+            return timestamp or "未知时间"
+        return f"{parsed.year}-{parsed.month}-{parsed.day} {parsed:%H:%M:%S}"
 
     @staticmethod
-    def _short_spirit_name(spirit_name: str) -> str:
-        name = spirit_name or "未知精灵"
-        return re.sub(r"^No\.\d+\s+", "", name).strip() or name
+    def _display_spirit_name(spirit_name: str) -> str:
+        name = (spirit_name or "").strip()
+        if name:
+            return name
+        return "未知精灵"
+
+    @staticmethod
+    def _pity_state(count: int) -> str:
+        if count >= PITY_MAX:
+            return "critical"
+        if count >= PITY_WARN_THRESHOLD:
+            return "warn"
+        return "normal"
 
 
 class QtMainWindow(QMainWindow):
@@ -620,7 +655,7 @@ class QtMainWindow(QMainWindow):
         self.sidebar.setCurrentRow(0)
         # 窗口大小
         self.setCentralWidget(root)
-        self.resize(1200, 780)
+        self.resize(1347, 780)
         self.setMinimumSize(1040, 620)
 
     def _card_counter(self, label: str, widget_name: str = "") -> tuple[QWidget, QLabel]:
@@ -863,10 +898,9 @@ class QtMainWindow(QMainWindow):
             title_label.setObjectName("shinyColumnTitle")
             column_layout.addWidget(title_label)
 
-            scroll = QScrollArea()
+            scroll = HoverScrollArea()
             scroll.setObjectName("shinyScroll")
             scroll.setWidgetResizable(True)
-            scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
             content = QWidget()
             content.setObjectName("shinyColumnContent")
             cards_layout = QVBoxLayout(content)
@@ -1536,7 +1570,6 @@ class QtMainWindow(QMainWindow):
                 card = ShinyRecordCard(
                     index=index,
                     record=record,
-                    pool_label=self._pool_label(record.pool_type),
                     element=element,
                 )
                 card.clicked.connect(self._select_shiny_record)
