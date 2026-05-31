@@ -231,6 +231,22 @@ class ShinyChoiceDialog(QDialog):
         self.accept()
 
 
+class AccordionTreeWidget(QTreeWidget):
+    """赛季标题单击展开，精灵条目保留正常选择。"""
+
+    def mousePressEvent(self, event) -> None:
+        if event.button() == Qt.MouseButton.LeftButton:
+            position = event.position().toPoint() if hasattr(event, "position") else event.pos()
+            item = self.itemAt(position)
+            data = item.data(0, Qt.ItemDataRole.UserRole) if item else None
+            if isinstance(data, dict) and data.get("is_season"):
+                self.setCurrentItem(item)
+                item.setExpanded(not item.isExpanded())
+                event.accept()
+                return
+        super().mousePressEvent(event)
+
+
 class ManualShinyDialog(QDialog):
     """异色明细页手动补录。"""
 
@@ -346,6 +362,9 @@ class ManualShinyDialog(QDialog):
         pool_type = self.pool_combo.currentData()
         spirit = self.spirit_combo.currentText()
         if not spirit:
+            return
+        if self.pity_spin.value() <= 0:
+            QMessageBox.warning(self, "无法添加异色记录", "保底数必须大于 0。")
             return
         self.result_data = {
             "pool_type": pool_type,
@@ -626,20 +645,26 @@ class QtMainWindow(QMainWindow):
 
         return card, count_label
 
-    def _card_buttons(self) -> QHBoxLayout:
+    def _card_buttons(self, compact: bool = False) -> QHBoxLayout | QGridLayout:
         """创建统一的操作按钮行 [+1] [-1] [重置] [出异色]。返回 layout 供调用方绑定信号。"""
-        row = QHBoxLayout()
+        row = QGridLayout() if compact else QHBoxLayout()
         row.setSpacing(12)
-        for text, role in [
+        for index, (text, role) in enumerate([
             ("+1", "increase"),
             ("-1", "decrease"),
             ("↺ 重置", "reset"),
             ("★ 出异色", "shiny"),
-        ]:
+        ]):
             btn = QPushButton(text)
             btn.setProperty("role", role)
+            if compact:
+                btn.setProperty("compact", "true")
+                btn.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
-            row.addWidget(btn)
+            if compact:
+                row.addWidget(btn, index // 2, index % 2)
+            else:
+                row.addWidget(btn)
         return row
 
     def _build_random_page(self) -> None:
@@ -690,7 +715,7 @@ class QtMainWindow(QMainWindow):
         # 上半：家族树 + 计数卡片
         splitter = QSplitter(Qt.Orientation.Horizontal)
 
-        self.family_tree = QTreeWidget()
+        self.family_tree = AccordionTreeWidget()
         self.family_tree.setColumnCount(1)
         self.family_tree.setHeaderLabels(["精灵"])
         self.family_tree.setHeaderHidden(True)
@@ -699,6 +724,7 @@ class QtMainWindow(QMainWindow):
         self.family_tree.setIconSize(QSize(28, 28))
         self.family_tree.setIndentation(16)
         self.family_tree.setRootIsDecorated(True)
+        self.family_tree.setExpandsOnDoubleClick(False)
         self.family_tree.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.family_tree.currentItemChanged.connect(self._on_family_selected)
         splitter.addWidget(self.family_tree)
@@ -773,7 +799,7 @@ class QtMainWindow(QMainWindow):
         card, self.element_detail_count = self._card_counter("保底进度")
         right_layout.addWidget(card)
 
-        btn_row = self._card_buttons()
+        btn_row = self._card_buttons(compact=True)
         inc, dec, rst, shiny = [btn_row.itemAt(i).widget() for i in range(4)]
         inc.clicked.connect(self._element_increase)
         dec.clicked.connect(self._element_decrease)

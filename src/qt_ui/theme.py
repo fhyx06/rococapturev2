@@ -5,6 +5,9 @@ from pathlib import Path
 _CHEVRON_DOWN_ICON = (
     Path(__file__).resolve().parents[1] / "assets" / "icons" / "chevron_down.svg"
 ).as_posix()
+_CHEVRON_RIGHT_ICON = (
+    Path(__file__).resolve().parents[1] / "assets" / "icons" / "chevron_right.svg"
+).as_posix()
 
 APP_STYLESHEET = """
 QMainWindow,
@@ -250,6 +253,13 @@ QPushButton[role="shiny"]:hover {
     background: #c98923;
 }
 
+QPushButton[compact="true"] {
+    min-width: 96px;
+    min-height: 36px;
+    font-size: 15px;
+    padding: 8px 10px;
+}
+
 QTreeWidget,
 QListWidget,
 QTableWidget {
@@ -263,6 +273,42 @@ QTableWidget {
 
 QTreeWidget {
     font-size: 14px;
+    padding: 6px 4px 6px 6px;
+}
+
+QTreeWidget::branch {
+    background: transparent;
+}
+
+QTreeWidget::branch:hover {
+    background: #242a34;
+}
+
+QTreeWidget::branch:selected {
+    background: #28364c;
+}
+
+QTreeWidget::branch:has-children:closed {
+    image: url("__CHEVRON_RIGHT_ICON__");
+}
+
+QTreeWidget::branch:has-children:open {
+    image: url("__CHEVRON_DOWN_ICON__");
+}
+
+QTreeWidget::item {
+    padding: 0;
+    border: 0;
+    background: transparent;
+}
+
+QTreeWidget::item:hover {
+    background: #242a34;
+}
+
+QTreeWidget::item:selected {
+    background: #28364c;
+    color: #ffffff;
 }
 
 QListWidget {
@@ -432,13 +478,11 @@ QLabel#shinyEmptyLabel {
     padding: 22px 8px;
 }
 
-QTreeWidget::item,
 QListWidget::item,
 QTableWidget::item {
     padding: 7px;
 }
 
-QTreeWidget::item:selected,
 QListWidget::item:selected,
 QTableWidget::item:selected {
     background: #28364c;
@@ -542,4 +586,6 @@ QTextEdit#logPanel QScrollBar::handle:vertical {
 QTextEdit#logPanel QScrollBar::handle:vertical:hover {
     background: #46566a;
 }
-""".replace("__CHEVRON_DOWN_ICON__", _CHEVRON_DOWN_ICON)
+""".replace("__CHEVRON_DOWN_ICON__", _CHEVRON_DOWN_ICON).replace(
+    "__CHEVRON_RIGHT_ICON__", _CHEVRON_RIGHT_ICON
+)
